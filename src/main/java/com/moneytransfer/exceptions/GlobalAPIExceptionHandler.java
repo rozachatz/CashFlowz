@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 @ControllerAdvice
 public class GlobalAPIExceptionHandler {
     public static final HttpStatus GENERIC_ERROR_HTTP_STATUS = HttpStatus.INTERNAL_SERVER_ERROR;
-    public static final HttpStatus SUCCESS_HTTP_STATUS = HttpStatus.CREATED;
+    public static final HttpStatus SUCCESS_HTTP_STATUS = HttpStatus.OK;
 
     @ExceptionHandler(MoneyTransferException.class)
     public ResponseEntity<ErrorResponseDto> handleMoneyExceptions(MoneyTransferException e) {
@@ -19,7 +19,7 @@ public class GlobalAPIExceptionHandler {
         HttpStatus status = e.getHttpStatus();
         return ResponseEntity
                 .status(status)
-                .body(new ErrorResponseDto(status.value(), e.getMessage()));
+                .body(new ErrorResponseDto(status.getReasonPhrase(), e.getMessage()));
     }
 
 }

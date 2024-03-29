@@ -62,23 +62,12 @@ public interface MoneyTransferAPIController {
                             content = @Content)
 
             })
-    ResponseEntity<GetTransferDto> transferRequest(@Parameter(description = "Unique identifier for the transfer request.", required = true) UUID transactionId, @Parameter(description = "The source, target accounts and the amount to be transferred.", required = true) NewTransferDto newTransferDTO, @Parameter(description = "Enforces serializable isolation or pessimistic/optimistic locking, depending on its value.", required = true) ConcurrencyControlMode concurrencyControlMode) throws MoneyTransferException;
+    ResponseEntity<GetTransferDto> transferRequest(@Parameter(description = "The transactionRequestId, the source, target accounts and the amount to be transferred.", required = true) NewTransferDto newTransferDTO, @Parameter(description = "Enforces serializable isolation or pessimistic/optimistic locking, depending on its value.", required = true) ConcurrencyControlMode concurrencyControlMode) throws MoneyTransferException;
 
-    @Operation(summary = "Gets all transactions with amount in the given range.")
-    @ApiResponses(
-            value = {
-                    @ApiResponse(responseCode = "200", description = "Transactions were found!",
-                            content = {@Content(mediaType = "application/json",
-                                    schema = @Schema(implementation = GetTransferDto.class))}),
-                    @ApiResponse(responseCode = "404", description = "No transactions were found!",
-                            content = @Content)
-            })
-    ResponseEntity<List<GetTransferDto>> getTransactionsWithinRange(@Parameter(description = "The minimum amount requested for transfer.", required = true) BigDecimal minAmount, @Parameter(description = "The maximum amount requested for transfer.", required = true) BigDecimal maxAmount) throws ResourceNotFoundException;
+    @Operation(summary = "Fetches all accounts, with a limitation to the maximum number of results.")
+    ResponseEntity<List<GetAccountDto>> getAccounts(@Parameter(description = "The maximum number of accounts that will be fetched.", required = true) int maxRecords);
 
-    @Operation(summary = "Fetches all accounts, with a limitation to the number of results.")
-    ResponseEntity<List<GetAccountDto>> getAccountsWithLimit(@Parameter(description = "The maximum number of accounts that will be fetched.", required = true) int limit);
-
-    @Operation(summary = "Fetches all transactions, with a limitation to the number of results.")
-    ResponseEntity<List<GetTransferDto>> getTransactionsWithLimit(@Parameter(description = "The maximum number of transactions that will be fetched.", required = true) @PathVariable int limit);
+    @Operation(summary = "Fetches all transactions, with a limitation to the maximum number of results.")
+    ResponseEntity<List<GetTransferDto>> getTransactions(@Parameter(description = "The maximum number of transactions that will be fetched.", required = true) @PathVariable int maxRecords);
 
 }

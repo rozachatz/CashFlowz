@@ -20,6 +20,10 @@
 
 	<dependencies>
 		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-core</artifactId>
+		</dependency>
+		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-cache</artifactId>
 		</dependency>
@@ -134,6 +138,17 @@
 				<configuration>
 					<mainClass>com.moneytransfer.MoneyTransferApplication</mainClass>
 					<layout>JAR</layout>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.flywaydb</groupId>
+				<artifactId>flyway-maven-plugin</artifactId>
+				<configuration>
+					<user>postgres</user>
+					<password>postgres</password>
+					<schemas>
+						<schema>public</schema>
+					</schemas>
 				</configuration>
 			</plugin>
 		</plugins>

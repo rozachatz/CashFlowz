@@ -13,13 +13,11 @@ import java.util.UUID;
 public interface GetAccountService {
     Account getAccountById(final UUID accountId) throws ResourceNotFoundException;
 
-    Account getAccountByIdOrReturnDefault(final UUID accountId) throws ResourceNotFoundException;
+    TransferAccountsDto getAccountsByIds(UUID sourceAccountId, UUID targetAccountId) throws ResourceNotFoundException;
 
-    TransferAccountsDto getAccountsByIds(final UUID sourceAccountId, final UUID targetAccountId) throws ResourceNotFoundException;
+    Page<Account> getAccounts(int maxRecords);
 
-    Page<Account> getAccountsWithLimit(final int limit);
+    TransferAccountsDto getAccountsByIdsOptimistic(UUID sourceAccountId, UUID targetAccountId) throws ResourceNotFoundException;
 
-    TransferAccountsDto getAccountsByIdsOptimistic(final UUID sourceAccountId, final UUID targetAccountId) throws ResourceNotFoundException;
-
-    TransferAccountsDto getAccountsByIdsPessimistic(final UUID sourceAccountId, final UUID targetAccountId) throws ResourceNotFoundException;
+    TransferAccountsDto getAccountsByIdsPessimistic(UUID sourceAccountId, UUID targetAccountId) throws ResourceNotFoundException;
 }

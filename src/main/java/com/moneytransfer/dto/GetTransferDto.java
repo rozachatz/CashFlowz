@@ -12,7 +12,7 @@ import java.util.UUID;
 /**
  * Dto that retains information for a {@link Transaction} entity.
  */
-public record GetTransferDto (UUID transactionId, UUID sourceAccountId, UUID targetAccountId, BigDecimal amount, TransactionStatus status, Currency currency){
+public record GetTransferDto (UUID transactionId, UUID sourceAccountId, UUID targetAccountId, BigDecimal amount, Currency currency){
 }
 
 

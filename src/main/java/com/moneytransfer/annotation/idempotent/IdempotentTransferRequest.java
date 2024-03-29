@@ -1,4 +1,4 @@
-package com.moneytransfer.annotation;
+package com.moneytransfer.annotation.idempotent;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

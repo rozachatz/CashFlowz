@@ -9,6 +9,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -31,10 +32,7 @@ class GetAccountServiceImpl implements GetAccountService {
      */
     public Account getAccountById(final UUID accountId) throws ResourceNotFoundException {
         return accountRepository.findById(accountId)
-                .orElseThrow(() -> {
-                    var errorMessage = "Account with ID: " + accountId + " was not found.";
-                    return new ResourceNotFoundException(errorMessage);
-                });
+                .orElseThrow(() -> new ResourceNotFoundException(accountId));
     }
 
     /**
@@ -47,32 +45,17 @@ class GetAccountServiceImpl implements GetAccountService {
      */
     public TransferAccountsDto getAccountsByIds(final UUID sourceAccountId, final UUID targetAccountId) throws ResourceNotFoundException {
         return accountRepository.findByIds(sourceAccountId, targetAccountId)
-                .orElseThrow(() -> {
-                    String errorMessage = "Source/target account not found. Source Account ID: " + sourceAccountId + ", Target Account ID: " + targetAccountId + ".";
-                    return new ResourceNotFoundException(errorMessage);
-                });
+                .orElseThrow(() -> new ResourceNotFoundException(List.of(sourceAccountId,targetAccountId)));
     }
 
     /**
-     * Gets the account by id or returns the account assigned as default.
+     * Gets account records.
      *
-     * @param accountId
-     * @return
-     * @throws ResourceNotFoundException
-     */
-    public Account getAccountByIdOrReturnDefault(UUID accountId) throws ResourceNotFoundException {
-        String default_UUID = "00000000-0000-0000-0000-000000000000";
-        return accountRepository.findById(accountId).orElse(getAccountById(UUID.fromString(default_UUID)));
-    }
-
-    /**
-     * Gets all accounts with limited number of results.
-     *
-     * @param limit
+     * @param maxRecords
      * @return Accounts
      */
-    public Page<Account> getAccountsWithLimit(final int limit) {
-        var pageRequest = PageRequest.of(0, limit);
+    public Page<Account> getAccounts(final int maxRecords) {
+        var pageRequest = PageRequest.of(0, maxRecords);
         return accountRepository.findAll(pageRequest);
     }
 
@@ -87,10 +70,7 @@ class GetAccountServiceImpl implements GetAccountService {
 
     public TransferAccountsDto getAccountsByIdsOptimistic(final UUID sourceAccountId, final UUID targetAccountId) throws ResourceNotFoundException {
         return accountRepository.findByIdAndLockOptimistic(sourceAccountId, targetAccountId)
-                .orElseThrow(() -> {
-                    var errorMessage = "Source/target account not found. Source Account ID: " + sourceAccountId + ", Target Account ID: " + targetAccountId + ".";
-                    return new ResourceNotFoundException(errorMessage);
-                });
+                .orElseThrow(() -> new ResourceNotFoundException(List.of(sourceAccountId,targetAccountId)));
     }
 
     /**
@@ -103,9 +83,6 @@ class GetAccountServiceImpl implements GetAccountService {
      */
     public TransferAccountsDto getAccountsByIdsPessimistic(final UUID sourceAccountId, final UUID targetAccountId) throws ResourceNotFoundException {
         return accountRepository.findByIdAndLockPessimistic(sourceAccountId, targetAccountId)
-                .orElseThrow(() -> {
-                    var errorMessage = "Source/target account not found. Source Account ID: " + sourceAccountId + ", Target Account ID: " + targetAccountId + ".";
-                    return new ResourceNotFoundException(errorMessage);
-                });
+                .orElseThrow(() -> new ResourceNotFoundException(List.of(sourceAccountId, targetAccountId)));
     }
 }

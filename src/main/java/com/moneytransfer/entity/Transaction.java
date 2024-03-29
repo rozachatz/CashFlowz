@@ -1,12 +1,10 @@
 package com.moneytransfer.entity;
 
 import com.moneytransfer.enums.Currency;
-import com.moneytransfer.enums.TransactionStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.http.HttpStatus;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -25,7 +23,6 @@ public class Transaction implements Serializable {
     @Id
     private UUID transactionId;
 
-    private TransactionStatus transactionStatus;
     @ManyToOne
     @JoinColumn(name = "source_account_id", referencedColumnName = "accountId")
     private Account sourceAccount;
@@ -36,11 +33,7 @@ public class Transaction implements Serializable {
 
     private BigDecimal amount;
 
-    private String message;
-
     private Currency currency;
-
-    private HttpStatus httpStatus;
 
     @Override
     public int hashCode() {

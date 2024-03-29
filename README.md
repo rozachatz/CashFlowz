@@ -18,13 +18,13 @@ Powered by Swagger. Power-up the application (preferably with [Docker](#docker))
 ### Account
 The Account entity represents a bank account with the following properties:
 
-| Field      | Description                                     |
-|------------|-------------------------------------------------|
-| account_id | Unique identifier of the account                |
-| owner_name | Name of the account owner                       |
+| Field      | Description                                    |
+|------------|------------------------------------------------|
+| account_id | Unique identifier of the account               |
+| owner_name | Name of the account owner                      |
 | balance    | Decimal number representing the account balance |
-| currency   | Currency of the account (e.g., "GBP")           |
-| createdAt  | Date and time when the account was created      |
+| currency   | Currency of the account           |
+| created_at | Date and time of account creation.             |
 
 ### Transaction
 The Transaction entity represents a financial transaction between two accounts and includes the following properties:
@@ -36,20 +36,19 @@ The Transaction entity represents a financial transaction between two accounts a
 | target_account_id | ID of the account receiving the funds |
 | amount            | Amount being transferred             |
 | currency          | currency of the transaction          |
-| hashedPayload     | hash value of the payload            |
-| status            | status of the Transaction            |
-| message           | detailed information for the  status |
 
 ### Request
-The Request entity represents an idempotent money transfer request:
+The Request entity represents an idempotent money transfer transactionRequest:
 
-| Field             | Description                           |
-|-------------------|---------------------------------------|
-| id                | Unique identifier of the request      |
-| source_account_id | ID of the account sending the funds   |
-| target_account_id | ID of the account receiving the funds |
-| amount            | Amount being transferred              |
-| transaction       | transaction of a resolved Request     |
+| Field             | Description                                  |
+|-------------------|----------------------------------------------|
+| id                | Unique identifier of the transactionRequest  |
+| source_account_id | ID of the account sending the funds          |
+| target_account_id | ID of the account receiving the funds        |
+| amount            | Amount of funds being transferred            |
+| transaction       | the associated Transaction                   |
+| http_status       | http status of the associated post request.  |
+| info_message      | detailed information for the request outcome |
 
 ## Architecture
 ### Controller
@@ -60,7 +59,7 @@ Records, ready-only.
 
 ### Aspects
 #### IdempotentTransferAspect 
-The aspect that provides the functionality for an idempotent transfer request.
+The aspect that provides the functionality for an idempotent transactionRequests.
 
 ### Services
 #### GetTransactionService
@@ -70,20 +69,19 @@ Gets all transactions within the system.
 Gets all accounts within the system.
 
 #### MoneyTransferService
-The microservice that performs the money transfer operation.
+Performs the money transfer operation.
 
 #### RequestService
-The microservice that gets, submits and resolves all requests.
+Gets, submits and resolves all transaction requests using cache mechanisms.
 
 #### CurrencyExchangeService
-Performs currency exchange from the source account's currency to the target account's currency by retrieving the latest exchange rates from "https://freecurrencyapi.com/"! 💱
-
+Performs currency exchange from the source currency to the target currency by retrieving the latest exchange rates from "https://freecurrencyapi.com/"! 💱
 
 
 ### Entities
 - Transaction
 - Account
-- Request
+- TransactionRequest
 
 ### Repositories
 JPA repositories.
@@ -107,13 +105,8 @@ First package the application into a JAR by executing:
 ````bash
 mvn clean package
 ````
-Then, allow the database container to finish initialization:
-````bash
-docker compose up db --build
-````
 Now you can power up the application *anytime* by just executing:
 ````bash
 docker compose up --build
 ````
-Note: skip the '--build' for subsequent runs.
 

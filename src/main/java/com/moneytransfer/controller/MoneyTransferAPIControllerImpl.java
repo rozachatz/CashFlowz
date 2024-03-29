@@ -17,7 +17,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -32,10 +31,9 @@ public class MoneyTransferAPIControllerImpl implements MoneyTransferAPIControlle
     private final GetTransactionService getTransactionService;
     private final MoneyTransferService moneyTransferService;
 
-    @PostMapping("/transfer/request/{transactionId}/{concurrencyControlMode}")
-    public ResponseEntity<GetTransferDto> transferRequest(@PathVariable UUID transactionId, @RequestBody NewTransferDto newTransferDto, @PathVariable ConcurrencyControlMode concurrencyControlMode) throws MoneyTransferException {
+    @PostMapping("/transfer")
+    public ResponseEntity<GetTransferDto> transferRequest(@RequestBody NewTransferDto newTransferDto, @RequestParam ConcurrencyControlMode concurrencyControlMode) throws MoneyTransferException {
         Transaction transaction = moneyTransferService.transfer(
-                transactionId,
                 newTransferDto,
                 concurrencyControlMode);
         return ResponseEntity
@@ -45,37 +43,17 @@ public class MoneyTransferAPIControllerImpl implements MoneyTransferAPIControlle
                         transaction.getSourceAccount().getAccountId(),
                         transaction.getTargetAccount().getAccountId(),
                         transaction.getAmount(),
-                        transaction.getTransactionStatus(),
                         transaction.getCurrency()));
     }
 
-    @GetMapping("/transactions/{minAmount}/{maxAmount}")
-    public ResponseEntity<List<GetTransferDto>> getTransactionsWithinRange(
-            @PathVariable BigDecimal minAmount,
-            @PathVariable BigDecimal maxAmount) throws ResourceNotFoundException {
-        List<Transaction> transactions = getTransactionService.getTransactionByAmountBetween(minAmount, maxAmount);
-        return ResponseEntity.ok(
-                transactions.stream()
-                        .map(transaction -> new GetTransferDto(
-                                transaction.getTransactionId(),
-                                transaction.getSourceAccount().getAccountId(),
-                                transaction.getTargetAccount().getAccountId(),
-                                transaction.getAmount(),
-                                transaction.getTransactionStatus(),
-                                transaction.getCurrency()))
-                        .collect(Collectors.toList())
-        );
-    }
-
-    @GetMapping("/transactions/{limit}")
-    public ResponseEntity<List<GetTransferDto>> getTransactionsWithLimit(@PathVariable int limit) {
-        Page<Transaction> transactions = getTransactionService.getTransactionsWithLimit(limit);
+    @GetMapping("/transactions/{maxRecords}")
+    public ResponseEntity<List<GetTransferDto>> getTransactions(@PathVariable int maxRecords) {
+        Page<Transaction> transactions = getTransactionService.getTransactions(maxRecords);
         return ResponseEntity.ok(transactions.get().map(transaction -> new GetTransferDto(
                 transaction.getTransactionId(),
                 transaction.getSourceAccount().getAccountId(),
                 transaction.getTargetAccount().getAccountId(),
                 transaction.getAmount(),
-                transaction.getTransactionStatus(),
                 transaction.getCurrency())).collect(Collectors.toList()));
     }
 
@@ -87,13 +65,12 @@ public class MoneyTransferAPIControllerImpl implements MoneyTransferAPIControlle
                 transaction.getSourceAccount().getAccountId(),
                 transaction.getTargetAccount().getAccountId(),
                 transaction.getAmount(),
-                transaction.getTransactionStatus(),
                 transaction.getCurrency()));
     }
 
-    @GetMapping("/accounts/{limit}")
-    public ResponseEntity<List<GetAccountDto>> getAccountsWithLimit(@PathVariable int limit) {
-        Page<Account> accounts = getAccountService.getAccountsWithLimit(limit);
+    @GetMapping("/accounts/{maxRecords}")
+    public ResponseEntity<List<GetAccountDto>> getAccounts(@PathVariable int maxRecords) {
+        Page<Account> accounts = getAccountService.getAccounts(maxRecords);
         return ResponseEntity.ok(accounts.get().map(account -> new GetAccountDto(account.getAccountId(), account.getBalance(), account.getCurrency())).collect(Collectors.toList()));
     }
 

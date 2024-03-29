@@ -13,10 +13,10 @@ import java.util.UUID;
  * @param targetAccountId
  * @param amount
  */
-public record NewTransferDto(UUID sourceAccountId, UUID targetAccountId, BigDecimal amount) {
+public record NewTransferDto(UUID requestId, UUID sourceAccountId, UUID targetAccountId, BigDecimal amount){
     @Override
     public int hashCode() {
-        return Objects.hash(sourceAccountId, targetAccountId, amount.stripTrailingZeros());
+        return Objects.hash(requestId, sourceAccountId, targetAccountId, amount.stripTrailingZeros());
     }
 
     @Override
@@ -24,7 +24,8 @@ public record NewTransferDto(UUID sourceAccountId, UUID targetAccountId, BigDeci
         if (this == obj) return true;
         if (obj == null || getClass() != obj.getClass()) return false;
         NewTransferDto that = (NewTransferDto) obj;
-        return Objects.equals(sourceAccountId, that.sourceAccountId) &&
+        return  Objects.equals(requestId, that.requestId) &&
+                Objects.equals(sourceAccountId, that.sourceAccountId) &&
                 Objects.equals(targetAccountId, that.targetAccountId) &&
                 Objects.equals(amount, that.amount);
     }

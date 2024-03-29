@@ -1,14 +1,12 @@
 package com.moneytransfer.service;
 
-import com.moneytransfer.annotation.IdempotentTransferRequest;
+import com.moneytransfer.annotation.idempotent.IdempotentTransferRequest;
 import com.moneytransfer.dto.NewTransferDto;
 import com.moneytransfer.dto.TransferAccountsDto;
 import com.moneytransfer.entity.Account;
 import com.moneytransfer.entity.Transaction;
 import com.moneytransfer.enums.ConcurrencyControlMode;
 import com.moneytransfer.enums.Currency;
-import com.moneytransfer.enums.TransactionStatus;
-import com.moneytransfer.exceptions.GlobalAPIExceptionHandler;
 import com.moneytransfer.exceptions.InsufficientBalanceException;
 import com.moneytransfer.exceptions.MoneyTransferException;
 import com.moneytransfer.exceptions.SameAccountException;
@@ -47,7 +45,7 @@ class MoneyTransferServiceImpl implements MoneyTransferService {
 
     @IdempotentTransferRequest
     @Transactional(propagation = NESTED)
-    public Transaction transfer(final UUID requestId, final NewTransferDto newTransferDto, final ConcurrencyControlMode concurrencyControlMode) throws MoneyTransferException {
+    public Transaction transfer(final NewTransferDto newTransferDto, final ConcurrencyControlMode concurrencyControlMode) throws MoneyTransferException {
         return switch (concurrencyControlMode) {
             case SERIALIZABLE_ISOLATION -> transferSerializable(newTransferDto);
             case OPTIMISTIC_LOCKING -> transferOptimistic(newTransferDto);
@@ -140,7 +138,7 @@ class MoneyTransferServiceImpl implements MoneyTransferService {
         var targetAccount = transferAccountsDto.getTargetAccount();
         transferAndExchange(sourceAccount, targetAccount, newTransferDto.amount());
         var currency = sourceAccount.getCurrency();
-        Transaction transaction = new Transaction(UUID.randomUUID(), TransactionStatus.SUCCESSFUL_TRANSFER, sourceAccount, targetAccount, newTransferDto.amount(), "Transaction was executed successfully.", currency, GlobalAPIExceptionHandler.SUCCESS_HTTP_STATUS);
+        Transaction transaction = new Transaction(UUID.randomUUID(), sourceAccount, targetAccount, newTransferDto.amount(), currency);
         return transactionRepository.save(transaction);
     }
 

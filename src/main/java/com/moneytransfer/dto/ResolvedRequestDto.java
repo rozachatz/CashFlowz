@@ -1,11 +1,10 @@
 package com.moneytransfer.dto;
 
 import com.moneytransfer.entity.Transaction;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
 
 import java.util.UUID;
 
+import org.springframework.http.HttpStatus;
 
-public record ResolvedRequestDto(UUID requestId, Transaction transaction){
+public record ResolvedRequestDto(UUID requestId, Transaction transaction, HttpStatus httpStatus, String infoMessage){
 }

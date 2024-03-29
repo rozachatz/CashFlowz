@@ -15,9 +15,6 @@ public interface GetTransactionService {
 
     Transaction getTransactionById(UUID transactionId) throws ResourceNotFoundException;
 
-    List<Transaction> getTransactionByAmountBetween(BigDecimal minAmount,
-                                                    BigDecimal maxAmount) throws ResourceNotFoundException;
-
-    Page<Transaction> getTransactionsWithLimit(final int limit);
+    Page<Transaction> getTransactions(int maxRecords);
 
 }

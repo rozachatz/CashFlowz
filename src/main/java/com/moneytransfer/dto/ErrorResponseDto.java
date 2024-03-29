@@ -1,10 +1,8 @@
 package com.moneytransfer.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-
 /**
  * Dto for logging and exception handling
+ * Retains HttpStatus reasonPhrase and a detailed information message.
  */
-public record ErrorResponseDto (int HttpStatusValue, String message){
+public record ErrorResponseDto (String reasonPhrase, String infoMessage){
 }

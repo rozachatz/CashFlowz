@@ -24,29 +24,13 @@ class GetTransactionServiceImpl implements GetTransactionService {
     private final TransactionRepository transactionRepository;
 
     /**
-     * Returns a list of {@link Transaction} entities with amount in the given range.
+     * Gets all transactions with limited maximum number of results.
      *
-     * @param minAmount
-     * @param maxAmount
-     * @return transactions
-     * @throws ResourceNotFoundException
-     */
-    public List<Transaction> getTransactionByAmountBetween(final BigDecimal minAmount, final BigDecimal maxAmount) throws ResourceNotFoundException {
-        return transactionRepository.findByAmountBetween(minAmount, maxAmount)
-                .orElseThrow(() -> {
-                    var errorMessage = "Transactions within the specified range: [" + minAmount + "," + maxAmount + "] were not found.";
-                    return new ResourceNotFoundException(errorMessage);
-                });
-    }
-
-    /**
-     * Gets all transactions with limited number of results.
-     *
-     * @param limit
+     * @param maxRecords
      * @return Accounts
      */
-    public Page<Transaction> getTransactionsWithLimit(final int limit) {
-        var pageRequest = PageRequest.of(0, limit);
+    public Page<Transaction> getTransactions(final int maxRecords) {
+        var pageRequest = PageRequest.of(0, maxRecords);
         return transactionRepository.findAll(pageRequest);
     }
 
@@ -59,10 +43,7 @@ class GetTransactionServiceImpl implements GetTransactionService {
      */
     public Transaction getTransactionById(final UUID transactionId) throws ResourceNotFoundException {
         return transactionRepository.findById(transactionId)
-                .orElseThrow(() -> {
-                    var errorMessage = "Transaction with id: " + transactionId + " was not found.";
-                    return new ResourceNotFoundException(errorMessage);
-                });
+                .orElseThrow(() -> new ResourceNotFoundException(transactionId));
     }
 
 }
