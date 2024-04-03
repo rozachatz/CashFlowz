@@ -32,7 +32,7 @@ CREATE TABLE transaction_requests (
     source_account_id UUID,
     target_account_id UUID,
     amount DECIMAL(19, 4),
-    infoMessage VARCHAR(255),
+    info_message VARCHAR(255),
     http_status VARCHAR(10)
 );
 

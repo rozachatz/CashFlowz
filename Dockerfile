@@ -4,11 +4,9 @@ LABEL   author="Roza Chatzigeorgiou"
 
 VOLUME  /tmp
 
-ENV PORT=8080
+ENV APP_PORT=8080 DEBUG_PORT=5005
 
-EXPOSE  $PORT
-
-EXPOSE 5005
+EXPOSE $APP_PORT $DEBUG_PORT
 
 ARG JAR_FILE=target/money-transfer-0.0.1-SNAPSHOT.jar
 

@@ -6,27 +6,28 @@ services:
     image: postgres:10.5
     restart: always
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=mydb
+      - POSTGRES_USER=$DB_USER
+      - POSTGRES_PASSWORD=$DB_PASS
+      - POSTGRES_DB=$DB_NAME
     ports:
       - '5432:5432'
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER}" ]
       interval: 10s
       timeout: 5s
       retries: 3
 
-  redis:
+  cache:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - '6379:6379'
+
   flyway:
     image: flyway/flyway:9.16-alpine
     environment:
-      - FLYWAY_URL=jdbc:postgresql://db:5432/mydb
-      - FLYWAY_USER=postgres
-      - FLYWAY_PASSWORD=postgres
+      - FLYWAY_URL=db
+      - FLYWAY_USER=$DB_USER
+      - FLYWAY_PASSWORD=$DB_PASS
       - FLYWAY_BASELINE_ON_MIGRATE=true
       - FLYWAY_VALIDATE_MIGRATION_NAMING=true
     depends_on:
@@ -39,17 +40,18 @@ services:
       dockerfile: Dockerfile
     image: money-transfer-app
     ports:
-      - '8080:8080'
-      - '5005:5005'
+      - '8080'
+      - '5005'
     network_mode: "host"
     depends_on:
       db:
         condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/mydb
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATASOURCE_HOST: $DB_URL
+      SPRING_DATASOURCE_USERNAME: $DB_USER
+      SPRING_DATASOURCE_PASSWORD: $DB_PASS
       SPRING_REDIS_HOST: localhost
       SPRING_REDIS_PORT: 6379
-      SPRING_CACHE_REDIS_TIME_TO_LIVE: 86400000  # TTL for one day in milliseconds
+      SPRING_CACHE_REDIS_TIME_TO_LIVE: 86400000
+
 

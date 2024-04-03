@@ -8,7 +8,7 @@ import org.springframework.http.HttpStatus;
 public class ResourceNotFoundException extends MoneyTransferException {
 
     public ResourceNotFoundException(List<UUID> resourceIds) {
-        super("The set of resources with ids "+ resourceIds.stream().map(UUID::toString).collect(Collectors.joining(", "))+" were not found: " );
+        super("The resources with ids: "+ resourceIds.stream().map(UUID::toString).collect(Collectors.joining(", "))+" were not found..." );
     }
 
     public ResourceNotFoundException(UUID resourceId) {
