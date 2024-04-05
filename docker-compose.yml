@@ -1,4 +1,4 @@
-version: '3.1'
+version: '3.3'
 
 services:
 
@@ -16,14 +16,28 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+    networks:
+      - network-simple
+    command: ["postgres", "-c", "log_statement=all", "-c", "log_destination=stderr"]
 
-  cache:
+  redis:
     image: redis:7-alpine
+    hostname: redis
     ports:
       - '6379:6379'
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    networks:
+      - network-simple
+
 
   flyway:
     image: flyway/flyway:9.16-alpine
+    networks:
+      - network-simple
     environment:
       - FLYWAY_URL=db
       - FLYWAY_USER=$DB_USER
@@ -40,18 +54,21 @@ services:
       dockerfile: Dockerfile
     image: money-transfer-app
     ports:
-      - '8080'
-      - '5005'
-    network_mode: "host"
+      - '8080:8080'
+      - '5005:5005'
+    networks:
+      - network-simple
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     environment:
       SPRING_DATASOURCE_HOST: $DB_URL
       SPRING_DATASOURCE_USERNAME: $DB_USER
       SPRING_DATASOURCE_PASSWORD: $DB_PASS
-      SPRING_REDIS_HOST: localhost
-      SPRING_REDIS_PORT: 6379
-      SPRING_CACHE_REDIS_TIME_TO_LIVE: 86400000
-
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+networks:
+  network-simple:
 
