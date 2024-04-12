@@ -3,27 +3,31 @@
  */
 package com.moneytransfer.service;
 
+import com.moneytransfer.dao.CurrencyExchangeDaoImpl;
 import com.moneytransfer.enums.Currency;
 import com.moneytransfer.exceptions.MoneyTransferException;
-import lombok.RequiredArgsConstructor;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.math.BigDecimal;
 
-@RunWith(SpringJUnit4ClassRunner.class)
-@SpringBootTest(classes = {CurrencyExchangeServiceImpl.class})
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+@ExtendWith(SpringExtension.class)
+@SpringBootTest(classes = {CurrencyExchangeServiceImpl.class, CurrencyExchangeDaoImpl.class})
 public class CurrencyExchangeServiceImplTest {
     @Autowired
-    private CurrencyExchangeServiceImpl currencyExchangeServiceImpl;
+    private CurrencyExchangeServiceImpl currencyExchangeDao;
+
+    @Autowired
+    private CurrencyExchangeDaoImpl currencyExchangeClient;
 
     @Test
     public void testAPI_Exchange() throws MoneyTransferException {
-        BigDecimal amount = currencyExchangeServiceImpl.exchangeCurrency(BigDecimal.valueOf(10), Currency.EUR, Currency.CAD);
-        Assert.assertTrue(amount.compareTo(BigDecimal.ZERO) > 0);
+        BigDecimal amount = currencyExchangeDao.exchange(BigDecimal.valueOf(10), Currency.EUR, Currency.CAD);
+        assertTrue(amount.compareTo(BigDecimal.ZERO) > 0);
     }
 }

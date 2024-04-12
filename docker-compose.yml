@@ -18,7 +18,7 @@ services:
       retries: 3
     networks:
       - network-simple
-    command: ["postgres", "-c", "log_statement=all", "-c", "log_destination=stderr"]
+    command: [ "postgres", "-c", "log_statement=all", "-c", "log_destination=stderr" ]
 
   redis:
     image: redis:7-alpine
@@ -32,22 +32,6 @@ services:
       retries: 30
     networks:
       - network-simple
-
-
-  flyway:
-    image: flyway/flyway:9.16-alpine
-    networks:
-      - network-simple
-    environment:
-      - FLYWAY_URL=db
-      - FLYWAY_USER=$DB_USER
-      - FLYWAY_PASSWORD=$DB_PASS
-      - FLYWAY_BASELINE_ON_MIGRATE=true
-      - FLYWAY_VALIDATE_MIGRATION_NAMING=true
-    depends_on:
-      db:
-        condition: service_healthy
-
   app:
     build:
       context: .
@@ -64,7 +48,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      SPRING_DATASOURCE_HOST: $DB_URL
+      SPRING_DATASOURCE_URL: $DB_URL
       SPRING_DATASOURCE_USERNAME: $DB_USER
       SPRING_DATASOURCE_PASSWORD: $DB_PASS
       SPRING_DATA_REDIS_HOST: redis

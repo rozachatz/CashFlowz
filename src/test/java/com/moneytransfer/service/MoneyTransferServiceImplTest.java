@@ -12,17 +12,15 @@ import com.moneytransfer.enums.Currency;
 import com.moneytransfer.enums.TransactionRequestStatus;
 import com.moneytransfer.exceptions.*;
 import com.moneytransfer.repository.AccountRepository;
-import com.moneytransfer.repository.TransactionRequestRepository;
 import com.moneytransfer.repository.TransactionRepository;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.jupiter.api.Assertions;
-import org.junit.runner.RunWith;
+import com.moneytransfer.repository.TransactionRequestRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.junit4.SpringRunner;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -31,13 +29,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.Assert.*;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
-@RunWith(SpringRunner.class)
+
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@Testcontainers
 @ActiveProfiles("test")
-@SpringBootTest
 public class MoneyTransferServiceImplTest {
     /**
      * CurrencyExchange Service
@@ -91,12 +88,12 @@ public class MoneyTransferServiceImplTest {
     /**
      * Insert new accounts for each test.
      */
-    @Before
+    @BeforeEach
     public void setup() {
         BigDecimal balance = BigDecimal.valueOf(10);
-        sourceAccount = new Account(0, UUID.randomUUID(),"Name1",   balance, Currency.EUR, LocalDateTime.now());
-        targetAccount = new Account(0, UUID.randomUUID(),"Name2", balance, Currency.USD, LocalDateTime.now());
-        targetAccount1 = new Account(0, UUID.randomUUID(),"Name3", balance, Currency.EUR, LocalDateTime.now());
+        sourceAccount = new Account(0, UUID.randomUUID(), "Name1", balance, Currency.EUR, LocalDateTime.now());
+        targetAccount = new Account(0, UUID.randomUUID(), "Name2", balance, Currency.USD, LocalDateTime.now());
+        targetAccount1 = new Account(0, UUID.randomUUID(), "Name3", balance, Currency.EUR, LocalDateTime.now());
         accountRepository.saveAll(List.of(targetAccount, targetAccount1, sourceAccount));
     }
 
@@ -118,7 +115,7 @@ public class MoneyTransferServiceImplTest {
         expectedTargetBalance = expectedTargetBalance.setScale(2, RoundingMode.HALF_EVEN);
         actualTargetBalance = actualTargetBalance.setScale(2, RoundingMode.HALF_EVEN);
         assertEquals(actualTargetBalance, expectedTargetBalance);
-        validateResolvedRequest(requestId, GlobalAPIExceptionHandler.SUCCESS_HTTP_STATUS);
+        validateResolvedRequest(requestId, HttpStatus.CREATED);
     }
 
     /**
@@ -131,7 +128,7 @@ public class MoneyTransferServiceImplTest {
         var amount = sourceAccount.getBalance();
         var requestId = UUID.randomUUID();
         var expectedSourceBalance = sourceAccount.getBalance().subtract(amount);
-        var expectedTargetBalance = targetAccount.getBalance().add(currencyExchangeService.exchangeCurrency(amount,sourceAccount.getCurrency(), targetAccount.getCurrency()));
+        var expectedTargetBalance = targetAccount.getBalance().add(currencyExchangeService.exchange(amount, sourceAccount.getCurrency(), targetAccount.getCurrency()));
         moneyTransferService.transfer(new NewTransferDto(requestId, sourceAccount.getAccountId(), targetAccount.getAccountId(), amount), ConcurrencyControlMode.SERIALIZABLE_ISOLATION);
         var actualSourceBalance = retrievePersistedBalance(sourceAccount.getAccountId());
         assertEquals(actualSourceBalance.stripTrailingZeros(), expectedSourceBalance.stripTrailingZeros());
@@ -139,7 +136,7 @@ public class MoneyTransferServiceImplTest {
         expectedTargetBalance = expectedTargetBalance.setScale(2, RoundingMode.HALF_EVEN);
         actualTargetBalance = actualTargetBalance.setScale(2, RoundingMode.HALF_EVEN);
         assertEquals(actualTargetBalance, expectedTargetBalance);
-        validateResolvedRequest(requestId, GlobalAPIExceptionHandler.SUCCESS_HTTP_STATUS);
+        validateResolvedRequest(requestId, HttpStatus.CREATED);
     }
 
     /**
@@ -151,7 +148,7 @@ public class MoneyTransferServiceImplTest {
     public void test_InsufficientBalance() throws MoneyTransferException {
         var amount = sourceAccount.getBalance().multiply(BigDecimal.valueOf(10));
         var requestId = UUID.randomUUID();
-        assertThrows(InsufficientBalanceException.class, () -> moneyTransferService.transfer(new NewTransferDto(requestId,  sourceAccount.getAccountId(), targetAccount.getAccountId(), amount), ConcurrencyControlMode.PESSIMISTIC_LOCKING));
+        assertThrows(InsufficientBalanceException.class, () -> moneyTransferService.transfer(new NewTransferDto(requestId, sourceAccount.getAccountId(), targetAccount.getAccountId(), amount), ConcurrencyControlMode.PESSIMISTIC_LOCKING));
         var actualSourceBalance = retrievePersistedBalance(sourceAccount.getAccountId());
         var expectedSourceBalance = sourceAccount.getBalance();
         assertEquals(actualSourceBalance.stripTrailingZeros(), expectedSourceBalance.stripTrailingZeros());
@@ -204,8 +201,8 @@ public class MoneyTransferServiceImplTest {
         var requestId = UUID.randomUUID();
         var amount = sourceAccount.getBalance();
         var newTransferDto = new NewTransferDto(requestId, sourceAccount.getAccountId(), targetAccount.getAccountId(), amount);
-        var transaction1 =  moneyTransferService.transfer(newTransferDto, ConcurrencyControlMode.SERIALIZABLE_ISOLATION);
-        var transaction2 =  moneyTransferService.transfer(newTransferDto, ConcurrencyControlMode.SERIALIZABLE_ISOLATION);
+        var transaction1 = moneyTransferService.transfer(newTransferDto, ConcurrencyControlMode.SERIALIZABLE_ISOLATION);
+        var transaction2 = moneyTransferService.transfer(newTransferDto, ConcurrencyControlMode.SERIALIZABLE_ISOLATION);
         assertEquals(transaction1, transaction2);
         assertEquals(transaction1.hashCode(), transaction2.hashCode());
     }
@@ -218,10 +215,10 @@ public class MoneyTransferServiceImplTest {
         var requestId = UUID.randomUUID();
         var amount = sourceAccount.getBalance().multiply(BigDecimal.TEN);
         var newTransferDto = new NewTransferDto(requestId, sourceAccount.getAccountId(), targetAccount.getAccountId(), amount);
-        var exception1 = assertThrows(MoneyTransferException.class, () ->  moneyTransferService.transfer(newTransferDto, ConcurrencyControlMode.SERIALIZABLE_ISOLATION));
-        var exception2 = assertThrows(MoneyTransferException.class, () ->  moneyTransferService.transfer(newTransferDto, ConcurrencyControlMode.SERIALIZABLE_ISOLATION));
-        Assertions.assertEquals(exception2.getMessage(), exception1.getMessage());
-        Assertions.assertEquals(exception2.getHttpStatus(), exception1.getHttpStatus());
+        var exception1 = assertThrows(MoneyTransferException.class, () -> moneyTransferService.transfer(newTransferDto, ConcurrencyControlMode.SERIALIZABLE_ISOLATION));
+        var exception2 = assertThrows(MoneyTransferException.class, () -> moneyTransferService.transfer(newTransferDto, ConcurrencyControlMode.SERIALIZABLE_ISOLATION));
+        assertEquals(exception2.getMessage(), exception1.getMessage());
+        assertEquals(exception2.getHttpStatus(), exception1.getHttpStatus());
 
     }
 
@@ -237,31 +234,31 @@ public class MoneyTransferServiceImplTest {
         var newTransferDto1 = new NewTransferDto(requestId, sourceAccount.getAccountId(), targetAccount.getAccountId(), initialBalance);
         var newTransferDto2 = new NewTransferDto(requestId, sourceAccount.getAccountId(), targetAccount.getAccountId(), BigDecimal.ZERO);
         moneyTransferService.transfer(newTransferDto1, ConcurrencyControlMode.SERIALIZABLE_ISOLATION);
-        var exception = assertThrows(RequestConflictException.class, () ->  moneyTransferService.transfer(newTransferDto2, ConcurrencyControlMode.SERIALIZABLE_ISOLATION));
+        var exception = assertThrows(RequestConflictException.class, () -> moneyTransferService.transfer(newTransferDto2, ConcurrencyControlMode.SERIALIZABLE_ISOLATION));
         assertTrue(exception.getMessage().contains("The JSON body does not match"));
-        Assertions.assertEquals(exception.getHttpStatus(), HttpStatus.CONFLICT);
+        assertEquals(exception.getHttpStatus(), HttpStatus.CONFLICT);
     }
 
     /**
      * Validates the resolved request fields.
+     *
      * @param id
-     * @param transactionStatus
      * @param httpStatus
      */
-    private void validateResolvedRequest(UUID id, HttpStatus httpStatus){
+    private void validateResolvedRequest(UUID id, HttpStatus httpStatus) {
         Optional<TransactionRequest> retrievedRequest = transactionRequestRepository.findById(id);
         assertTrue(retrievedRequest.isPresent());
         assertEquals(retrievedRequest.get().getTransactionRequestStatus(), TransactionRequestStatus.COMPLETED);
         assertEquals(retrievedRequest.get().getHttpStatus(), httpStatus);
-        if (httpStatus!=GlobalAPIExceptionHandler.SUCCESS_HTTP_STATUS)
-			assertNull(retrievedRequest.get().getTransaction());
+        if (!httpStatus.is2xxSuccessful())
+            assertNull(retrievedRequest.get().getTransaction());
         else
             assertNotNull(retrievedRequest.get().getTransaction());
     }
 
     private BigDecimal retrievePersistedBalance(UUID accountId) throws ResourceNotFoundException {
         return accountRepository.findById(accountId)
-                .orElseThrow(() -> new ResourceNotFoundException(accountId))
+                .orElseThrow(() -> new ResourceNotFoundException(Account.class, accountId))
                 .getBalance();
     }
 }

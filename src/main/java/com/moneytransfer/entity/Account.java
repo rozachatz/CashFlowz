@@ -20,7 +20,8 @@ import java.util.UUID;
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor(access = lombok.AccessLevel.PRIVATE)
-public class Account implements Serializable {
+public class Account
+        implements Serializable {
     @Version
     protected int version;
     @Id

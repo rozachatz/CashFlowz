@@ -9,6 +9,6 @@ public class MoneyTransferException extends Exception implements HttpStatusProvi
     }
 
     public HttpStatus getHttpStatus() {
-        return GlobalAPIExceptionHandler.GENERIC_ERROR_HTTP_STATUS;
+        return HttpStatus.INTERNAL_SERVER_ERROR;
     }
 }
