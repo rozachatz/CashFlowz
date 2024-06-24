@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 
-import static org.springframework.transaction.annotation.Propagation.NESTED;
+import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 
 /**
  * Implementation for {@link MoneyTransferService}.
@@ -32,7 +32,7 @@ class MoneyTransferServiceImpl implements MoneyTransferService {
     private final GetAccountService getAccountService;
     private final TransactionRepository transactionRepository;
 
-    @Transactional(propagation = NESTED)
+    @Transactional(propagation = REQUIRES_NEW)
     @IdempotentTransferRequest
     public Transaction transferWithLocking(final NewTransferDto newTransferDto, final LockControlMode lockControlMode) throws MoneyTransferException {
         return switch (lockControlMode) {
@@ -43,7 +43,7 @@ class MoneyTransferServiceImpl implements MoneyTransferService {
 
 
     @IdempotentTransferRequest
-    @Transactional(propagation = NESTED, isolation = Isolation.SERIALIZABLE)
+    @Transactional(propagation = REQUIRES_NEW, isolation = Isolation.SERIALIZABLE)
     public Transaction transferSerializable(final NewTransferDto newTransferDto) throws MoneyTransferException {
         return transfer(newTransferDto);
     }

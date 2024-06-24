@@ -15,10 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Arrays;
-import java.util.Objects;
 import java.util.UUID;
-import java.util.stream.Stream;
 
 /**
  * Implementation of {@link RequestService}
@@ -43,23 +40,31 @@ public class RequestServiceImpl implements RequestService {
 
     @CachePut(cacheNames = "moneyTransferRequestsCache", key = "#result.requestId")
     public TransactionRequest completeRequest(final TransactionRequest transactionRequest, final Transaction transaction, final HttpStatus httpStatus, String infoMessage) throws InsufficientRequestDataException, InvalidRequestStateException {
-        TransactionRequest requestForCompletion = new TransactionRequest(transactionRequest.getRequestId(), transactionRequest.getAmount(), transactionRequest.getSourceAccountId(), transactionRequest.getTargetAccountId(), TransactionRequestStatus.COMPLETED, httpStatus, infoMessage, transaction);
-        validateRequestForCompletion(requestForCompletion);
+        validateRequestState(transactionRequest.getRequestId());
+        var completedRequest = new TransactionRequest(transactionRequest.getRequestId(), transactionRequest.getAmount(), transactionRequest.getSourceAccountId(), transactionRequest.getTargetAccountId(), TransactionRequestStatus.COMPLETED, httpStatus, infoMessage, transaction);
+        validateRequestForCompletion(completedRequest);
         transactionRequestRepository.completeRequest(new CompletedRequestDto(transactionRequest.getRequestId(), transaction, httpStatus, infoMessage));
-        return requestForCompletion;
+        return completedRequest;
     }
 
-    public void validateRequestForCompletion(TransactionRequest transactionRequest) throws InsufficientRequestDataException {
-        if (!isValidTransactionStatusPair(transactionRequest)) {
+    public void validateRequestForCompletion(TransactionRequest transactionRequest) throws InsufficientRequestDataException, InvalidRequestStateException {
+        if (!areFieldsValidForCompletion(transactionRequest)) {
             throw new InsufficientRequestDataException(transactionRequest.getRequestId());
         }
     }
 
-    private boolean isValidTransactionStatusPair(TransactionRequest transactionRequest) {
-        if(transactionRequest.getHttpStatus().is2xxSuccessful()){
-            return transactionRequest.getTransaction()!=null;
+    public void validateRequestState(UUID requestId) throws InvalidRequestStateException {
+        transactionRequestRepository.findById(requestId)
+                .filter(t -> t.getTransactionRequestStatus() == TransactionRequestStatus.IN_PROGRESS)
+                .orElseThrow(() -> new InvalidRequestStateException(requestId));
+    }
+
+    private boolean areFieldsValidForCompletion(TransactionRequest transactionRequest) {
+        if (transactionRequest.getInfoMessage() == null) return false;
+        if (transactionRequest.getHttpStatus().is2xxSuccessful()) {
+            return transactionRequest.getTransaction() != null;
         }
-        return transactionRequest.getTransaction()==null;
+        return transactionRequest.getTransaction() == null;
     }
 
 }

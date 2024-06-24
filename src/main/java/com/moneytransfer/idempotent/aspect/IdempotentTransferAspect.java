@@ -12,10 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
-import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
@@ -24,9 +22,8 @@ import java.util.Optional;
  * This aspect intercepts method calls annotated with {@link IdempotentTransferRequest},processes idempotent transfer requests
  * and ensures that multiple identical requests have the same effect as a single request.
  */
-@Aspect
-@Order(2)
 @Component
+@Aspect
 @RequiredArgsConstructor
 public class IdempotentTransferAspect {
     private final RequestService requestService;
@@ -42,8 +39,6 @@ public class IdempotentTransferAspect {
      * @return It retrieves the associated {@link Transaction}
      * @throws Throwable Throws an exception if a business error occurs during the money transfer operation.
      */
-
-    @Transactional
     @Around("@annotation(idempotentTransferRequest) && args(newTransferDto)")
     public Transaction handleIdempotentTransferRequest(ProceedingJoinPoint proceedingJoinPoint, IdempotentTransferRequest idempotentTransferRequest, NewTransferDto newTransferDto) throws Throwable {
         return handleRequest(newTransferDto, proceedingJoinPoint);

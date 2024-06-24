@@ -22,7 +22,7 @@ public interface MoneyTransferService {
     /**
      * Performs a serializable money transfer operation.
      *
-     * @param newTransferDto  The data representing the transfer request.
+     * @param newTransferDto The data representing the transfer request.
      * @return The {@link Transaction} object representing the transfer.
      * @throws MoneyTransferException If an error occurs during the money transfer operation.
      */
