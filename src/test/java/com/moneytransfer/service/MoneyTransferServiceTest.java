@@ -6,7 +6,6 @@ package com.moneytransfer.service;
 
 import com.moneytransfer.dto.NewTransferDto;
 import com.moneytransfer.entity.Account;
-import com.moneytransfer.enums.ConcurrencyControlMode;
 import com.moneytransfer.enums.Currency;
 import com.moneytransfer.exceptions.InsufficientBalanceException;
 import com.moneytransfer.exceptions.MoneyTransferException;
@@ -33,15 +32,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @Testcontainers
 @ActiveProfiles("test")
-public class MoneyTransferServiceImplTest {
+public class MoneyTransferServiceTest {
     @Autowired
     private CurrencyExchangeService currencyExchangeService;
 
     @Autowired
-    private MoneyTransferServiceImpl moneyTransferService;
-
-    @Autowired
-    private GetAccountServiceImpl accountService;
+    private MoneyTransferService moneyTransferService;
 
     @Autowired
     private AccountRepository accountRepository;
@@ -72,7 +68,7 @@ public class MoneyTransferServiceImplTest {
         var amount = sourceAccount.getBalance();
         var expectedSourceBalance = sourceAccount.getBalance().subtract(amount);
         var expectedTargetBalance = targetAccount1.getBalance().add(amount);
-        moneyTransferService.transfer(new NewTransferDto(UUID.randomUUID(), sourceAccount.getAccountId(), targetAccount1.getAccountId(), amount), ConcurrencyControlMode.OPTIMISTIC_LOCKING);
+        moneyTransferService.transferSerializable(new NewTransferDto(UUID.randomUUID(), sourceAccount.getAccountId(), targetAccount1.getAccountId(), amount));
         var actualSourceBalance = retrievePersistedBalance(sourceAccount.getAccountId());
         assertEquals(actualSourceBalance.stripTrailingZeros(), expectedSourceBalance.stripTrailingZeros());
         var actualTargetBalance = retrievePersistedBalance(targetAccount1.getAccountId());
@@ -92,7 +88,7 @@ public class MoneyTransferServiceImplTest {
         var requestId = UUID.randomUUID();
         var expectedSourceBalance = sourceAccount.getBalance().subtract(amount);
         var expectedTargetBalance = targetAccount.getBalance().add(currencyExchangeService.exchange(amount, sourceAccount.getCurrency(), targetAccount.getCurrency()));
-        moneyTransferService.transfer(new NewTransferDto(requestId, sourceAccount.getAccountId(), targetAccount.getAccountId(), amount), ConcurrencyControlMode.SERIALIZABLE_ISOLATION);
+        moneyTransferService.transferSerializable(new NewTransferDto(requestId, sourceAccount.getAccountId(), targetAccount.getAccountId(), amount));
         var actualSourceBalance = retrievePersistedBalance(sourceAccount.getAccountId());
         assertEquals(actualSourceBalance.stripTrailingZeros(), expectedSourceBalance.stripTrailingZeros());
         var actualTargetBalance = retrievePersistedBalance(targetAccount.getAccountId());
@@ -110,7 +106,7 @@ public class MoneyTransferServiceImplTest {
     public void test_InsufficientBalance() throws MoneyTransferException {
         var amount = sourceAccount.getBalance().multiply(BigDecimal.valueOf(10));
         var requestId = UUID.randomUUID();
-        assertThrows(InsufficientBalanceException.class, () -> moneyTransferService.transfer(new NewTransferDto(requestId, sourceAccount.getAccountId(), targetAccount.getAccountId(), amount), ConcurrencyControlMode.PESSIMISTIC_LOCKING));
+        assertThrows(InsufficientBalanceException.class, () -> moneyTransferService.transferSerializable(new NewTransferDto(requestId, sourceAccount.getAccountId(), targetAccount.getAccountId(), amount)));
         var actualSourceBalance = retrievePersistedBalance(sourceAccount.getAccountId());
         var expectedSourceBalance = sourceAccount.getBalance();
         assertEquals(actualSourceBalance.stripTrailingZeros(), expectedSourceBalance.stripTrailingZeros());
@@ -125,11 +121,11 @@ public class MoneyTransferServiceImplTest {
      * @throws MoneyTransferException
      */
     @Test
-    public void test_TransferSameAccount() throws MoneyTransferException {
+    public void test_transferSerializableSameAccount() throws MoneyTransferException {
         var amount = BigDecimal.ONE;
         var expectedBalance = sourceAccount.getBalance();
         var requestId = UUID.randomUUID();
-        assertThrows(SameAccountException.class, () -> moneyTransferService.transfer(new NewTransferDto(requestId, sourceAccount.getAccountId(), sourceAccount.getAccountId(), amount), ConcurrencyControlMode.SERIALIZABLE_ISOLATION));
+        assertThrows(SameAccountException.class, () -> moneyTransferService.transferSerializable(new NewTransferDto(requestId, sourceAccount.getAccountId(), sourceAccount.getAccountId(), amount)));
         var actualBalance = retrievePersistedBalance(sourceAccount.getAccountId());
         assertEquals(actualBalance.stripTrailingZeros(), expectedBalance.stripTrailingZeros());
     }
@@ -145,7 +141,7 @@ public class MoneyTransferServiceImplTest {
         var nonExistingAccountId = UUID.randomUUID();
         var expectedBalance = sourceAccount.getBalance();
         var requestId = UUID.randomUUID();
-        assertThrows(ResourceNotFoundException.class, () -> moneyTransferService.transfer(new NewTransferDto(requestId, sourceAccount.getAccountId(), nonExistingAccountId, amount), ConcurrencyControlMode.SERIALIZABLE_ISOLATION));
+        assertThrows(ResourceNotFoundException.class, () -> moneyTransferService.transferSerializable(new NewTransferDto(requestId, sourceAccount.getAccountId(), nonExistingAccountId, amount)));
         var actualBalance = retrievePersistedBalance(sourceAccount.getAccountId());
         assertEquals(actualBalance.stripTrailingZeros(), expectedBalance.stripTrailingZeros());
     }

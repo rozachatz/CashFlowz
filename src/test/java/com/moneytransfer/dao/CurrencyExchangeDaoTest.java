@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(classes = {CurrencyExchangeDaoImpl.class})
-public class CurrencyExchangeDaoImplTest {
+public class CurrencyExchangeDaoTest {
     @Autowired
     CurrencyExchangeDaoImpl currencyExchangeClient;
 

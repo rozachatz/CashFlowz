@@ -6,7 +6,7 @@ import com.moneytransfer.entity.Account;
 import com.moneytransfer.exceptions.ResourceNotFoundException;
 import com.moneytransfer.repository.AccountRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,27 +27,24 @@ class GetAccountServiceImpl implements GetAccountService {
                 .orElseThrow(() -> new ResourceNotFoundException(Account.class, accountId));
     }
 
+    public PageResponseDto<Account> getAccounts(int maxRecords) {
+        List<Account> accounts = accountRepository.findAll(Pageable.ofSize(maxRecords)).toList();
+        return new PageResponseDto<>(accounts);
+    }
 
-    public GetAccountsForNewTransferDto getAccountsByIds(final UUID sourceAccountId, final UUID targetAccountId) throws ResourceNotFoundException {
+    public GetAccountsForNewTransferDto getAccountPairByIds(final UUID sourceAccountId, final UUID targetAccountId) throws ResourceNotFoundException {
         return accountRepository.findByIds(sourceAccountId, targetAccountId).orElseThrow(() -> new ResourceNotFoundException(Account.class, sourceAccountId, targetAccountId));
     }
 
 
-    public PageResponseDto<Account> getAccounts(final int maxRecords) {
-        var pageRequest = PageRequest.of(0, maxRecords);
-        List<Account> accounts = accountRepository.findAll(pageRequest).toList();
-        return new PageResponseDto<>(accounts);
-    }
-
-
-    public GetAccountsForNewTransferDto getAccountsByIdsOptimistic(final UUID sourceAccountId, final UUID targetAccountId) throws ResourceNotFoundException {
+    public GetAccountsForNewTransferDto getAccountPairByIdsOptimistic(final UUID sourceAccountId, final UUID targetAccountId) throws ResourceNotFoundException {
         return accountRepository.findByIdAndLockOptimistic(sourceAccountId, targetAccountId)
                 .orElseThrow(() -> new ResourceNotFoundException(Account.class, sourceAccountId, targetAccountId));
     }
 
 
-    public GetAccountsForNewTransferDto getAccountsByIdsPessimistic(final UUID sourceAccountId,
-                                                                    final UUID targetAccountId) throws ResourceNotFoundException {
+    public GetAccountsForNewTransferDto getAccountPairByIdsPessimistic(final UUID sourceAccountId,
+                                                                       final UUID targetAccountId) throws ResourceNotFoundException {
         return accountRepository.findByIdAndLockPessimistic(sourceAccountId, targetAccountId)
                 .orElseThrow(() -> new ResourceNotFoundException(Account.class, sourceAccountId, targetAccountId));
     }

@@ -3,6 +3,7 @@ package com.moneytransfer.service;
 import com.moneytransfer.dto.NewTransferDto;
 import com.moneytransfer.entity.Transaction;
 import com.moneytransfer.entity.TransactionRequest;
+import com.moneytransfer.exceptions.InsufficientRequestDataException;
 import com.moneytransfer.exceptions.MoneyTransferException;
 import org.springframework.http.HttpStatus;
 
@@ -29,17 +30,17 @@ public interface RequestService {
      * @param newTransferDto contains the fields for the new {@link TransactionRequest} object.
      * @return
      */
-    TransactionRequest createRequest(NewTransferDto newTransferDto);
+    TransactionRequest createRequest(NewTransferDto newTransferDto) throws InsufficientRequestDataException;
 
     /**
      * Completes a {@link TransactionRequest}.
      *
-     * @param newTransferDto
+     * @param transactionRequest
      * @param transaction
      * @param httpStatus
      * @param infoMessage
      * @return a TransactionRequest with status {@link com.moneytransfer.enums.TransactionRequestStatus#COMPLETED}.
      * @throws MoneyTransferException
      */
-    TransactionRequest completeRequest(NewTransferDto newTransferDto, Transaction transaction, HttpStatus httpStatus, String infoMessage) throws MoneyTransferException;
+    TransactionRequest completeRequest(TransactionRequest transactionRequest, Transaction transaction, HttpStatus httpStatus, String infoMessage) throws MoneyTransferException;
 }

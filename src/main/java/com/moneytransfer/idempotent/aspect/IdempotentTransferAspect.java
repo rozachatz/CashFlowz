@@ -3,6 +3,7 @@ package com.moneytransfer.idempotent.aspect;
 import com.moneytransfer.dto.NewTransferDto;
 import com.moneytransfer.entity.Transaction;
 import com.moneytransfer.entity.TransactionRequest;
+import com.moneytransfer.exceptions.InsufficientRequestDataException;
 import com.moneytransfer.exceptions.MoneyTransferException;
 import com.moneytransfer.exceptions.RequestConflictException;
 import com.moneytransfer.idempotent.annotation.IdempotentTransferRequest;
@@ -11,9 +12,9 @@ import lombok.RequiredArgsConstructor;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
@@ -24,6 +25,7 @@ import java.util.Optional;
  * and ensures that multiple identical requests have the same effect as a single request.
  */
 @Aspect
+@Order(2)
 @Component
 @RequiredArgsConstructor
 public class IdempotentTransferAspect {
@@ -40,8 +42,9 @@ public class IdempotentTransferAspect {
      * @return It retrieves the associated {@link Transaction}
      * @throws Throwable Throws an exception if a business error occurs during the money transfer operation.
      */
-    @Around("@annotation(idempotentTransferRequest) && execution(* transfer(com.moneytransfer.dto.NewTransferDto,..)) && args(newTransferDto,..)")
-    @Transactional(isolation = Isolation.SERIALIZABLE)
+
+    @Transactional
+    @Around("@annotation(idempotentTransferRequest) && args(newTransferDto)")
     public Transaction handleIdempotentTransferRequest(ProceedingJoinPoint proceedingJoinPoint, IdempotentTransferRequest idempotentTransferRequest, NewTransferDto newTransferDto) throws Throwable {
         return handleRequest(newTransferDto, proceedingJoinPoint);
     }
@@ -64,7 +67,7 @@ public class IdempotentTransferAspect {
         var request = getOrCreateRequest(newTransferDto);
         validateIdempotent(request, newTransferDto);
         return switch (request.getTransactionRequestStatus()) {
-            case IN_PROGRESS -> processTransfer(newTransferDto, proceedingJoinPoint);
+            case IN_PROGRESS -> processTransfer(request, proceedingJoinPoint);
             case COMPLETED -> getTransactionOrThrow(request);
         };
     }
@@ -77,7 +80,13 @@ public class IdempotentTransferAspect {
      */
     private TransactionRequest getOrCreateRequest(final NewTransferDto newTransferDto) {
         var transactionRequest = requestService.getRequest(newTransferDto.requestId());
-        return Optional.ofNullable(transactionRequest).orElseGet(() -> requestService.createRequest(newTransferDto));
+        return Optional.ofNullable(transactionRequest).orElseGet(() -> {
+            try {
+                return requestService.createRequest(newTransferDto);
+            } catch (InsufficientRequestDataException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     /**
@@ -85,26 +94,26 @@ public class IdempotentTransferAspect {
      * A {@link Transaction} object is returned only if the intercepted transfer method operation completed successfully.
      * Completes the {@link TransactionRequest}.
      *
-     * @param newTransferDto
+     * @param transactionRequest
      * @param proceedingJoinPoint
      * @return a new {@link Transaction} object
      * @throws Throwable Propagates the exception thrown by the intercepted transfer method.
      */
-    private Transaction processTransfer(final NewTransferDto newTransferDto, final ProceedingJoinPoint proceedingJoinPoint) throws Throwable {
+    private Transaction processTransfer(final TransactionRequest transactionRequest, final ProceedingJoinPoint proceedingJoinPoint) throws Throwable {
         Transaction transaction = null;
         HttpStatus httpStatus = null;
         String infoMessage = null;
         try {
             transaction = (Transaction) proceedingJoinPoint.proceed();
             httpStatus = HttpStatus.CREATED;
-            infoMessage = "Transfer Request completed successfully.";
+            infoMessage = httpStatus.getReasonPhrase();
             return transaction;
         } catch (MoneyTransferException e) {
             infoMessage = e.getMessage();
             httpStatus = e.getHttpStatus();
             throw e;
         } finally {
-            requestService.completeRequest(newTransferDto, transaction, httpStatus, infoMessage);
+            requestService.completeRequest(transactionRequest, transaction, httpStatus, infoMessage);
         }
     }
 

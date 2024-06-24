@@ -3,6 +3,7 @@
  */
 package com.moneytransfer.service;
 
+import com.moneytransfer.dao.CurrencyExchangeDao;
 import com.moneytransfer.dao.CurrencyExchangeDaoImpl;
 import com.moneytransfer.enums.Currency;
 import com.moneytransfer.exceptions.MoneyTransferException;
@@ -18,12 +19,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(classes = {CurrencyExchangeServiceImpl.class, CurrencyExchangeDaoImpl.class})
-public class CurrencyExchangeServiceImplTest {
+public class CurrencyExchangeServiceTest {
     @Autowired
-    private CurrencyExchangeServiceImpl currencyExchangeDao;
+    private CurrencyExchangeService currencyExchangeDao;
 
     @Autowired
-    private CurrencyExchangeDaoImpl currencyExchangeClient;
+    private CurrencyExchangeDao currencyExchangeClient;
 
     @Test
     public void testAPI_Exchange() throws MoneyTransferException {

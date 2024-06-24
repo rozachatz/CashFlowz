@@ -21,20 +21,20 @@ public interface GetAccountService {
     Account getAccountById(UUID accountId) throws ResourceNotFoundException;
 
     /**
-     * Gets the source and target {@link Account} entities by their ids.
+     * Gets the source and target {@link Account} content by their ids.
      *
      * @param sourceAccountId
      * @param targetAccountId
      * @return GetAccountsForNewTransferDto containing the accounts.
      * @throws ResourceNotFoundException if an {@link Account} was not found for this id.
      */
-    GetAccountsForNewTransferDto getAccountsByIds(UUID sourceAccountId, UUID targetAccountId) throws ResourceNotFoundException;
+    GetAccountsForNewTransferDto getAccountPairByIds(UUID sourceAccountId, UUID targetAccountId) throws ResourceNotFoundException;
 
     /**
      * Gets {@link Account} records.
      *
-     * @param maxRecords The maximum number of records that will be returned.
-     * @return PageResponseDto for the accounts.
+     * @param maxRecords The maximum amount of records.
+     * @return PageResponseDto containing Account objects.
      */
     PageResponseDto<Account> getAccounts(int maxRecords);
 
@@ -48,7 +48,7 @@ public interface GetAccountService {
      * @return
      * @throws ResourceNotFoundException
      */
-    GetAccountsForNewTransferDto getAccountsByIdsOptimistic(UUID sourceAccountId, UUID targetAccountId) throws ResourceNotFoundException;
+    GetAccountsForNewTransferDto getAccountPairByIdsOptimistic(UUID sourceAccountId, UUID targetAccountId) throws ResourceNotFoundException;
 
     /**
      * Retrieves the {@link GetAccountsForNewTransferDto} containing source and target accounts
@@ -60,5 +60,5 @@ public interface GetAccountService {
      * @return
      * @throws ResourceNotFoundException
      */
-    GetAccountsForNewTransferDto getAccountsByIdsPessimistic(UUID sourceAccountId, UUID targetAccountId) throws ResourceNotFoundException;
+    GetAccountsForNewTransferDto getAccountPairByIdsPessimistic(UUID sourceAccountId, UUID targetAccountId) throws ResourceNotFoundException;
 }

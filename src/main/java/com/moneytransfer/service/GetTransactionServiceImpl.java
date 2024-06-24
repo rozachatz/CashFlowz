@@ -5,7 +5,7 @@ import com.moneytransfer.entity.Transaction;
 import com.moneytransfer.exceptions.ResourceNotFoundException;
 import com.moneytransfer.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -20,8 +20,7 @@ class GetTransactionServiceImpl implements GetTransactionService {
     private final TransactionRepository transactionRepository;
 
     public PageResponseDto<Transaction> getTransactions(final int maxRecords) {
-        var pageRequest = PageRequest.of(0, maxRecords);
-        List<Transaction> transactions = transactionRepository.findAll(pageRequest).toList();
+        List<Transaction> transactions = transactionRepository.findAll(Pageable.ofSize(maxRecords)).toList();
         return new PageResponseDto<>(transactions);
     }
 

@@ -3,7 +3,6 @@ package com.moneytransfer.controller;
 import com.moneytransfer.dto.GetAccountDto;
 import com.moneytransfer.dto.GetTransferDto;
 import com.moneytransfer.dto.NewTransferDto;
-import com.moneytransfer.enums.ConcurrencyControlMode;
 import com.moneytransfer.exceptions.MoneyTransferException;
 import com.moneytransfer.exceptions.ResourceNotFoundException;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,7 +12,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.List;
 import java.util.UUID;
@@ -45,23 +43,21 @@ public interface MoneyTransferAPIController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Transfer request completed successfully.", content = {
                     @Content(mediaType = "application/json", schema = @Schema(implementation = GetTransferDto.class))}),
-            @ApiResponse(responseCode = "404", description = "The specified source or target account was not found. In this system, not found accounts are represented by a UUID with all zeros.", content = @Content),
+            @ApiResponse(responseCode = "404", description = "The specified source or target account was not found.", content = @Content),
             @ApiResponse(responseCode = "402", description = "Insufficient balance for executing the money transfer.", content = @Content),
             @ApiResponse(responseCode = "400", description = "Transfers within the same account are not allowed.", content = @Content),
             @ApiResponse(responseCode = "409", description = "This transfer request has already been completed but there is a conflict with the provided json body.", content = @Content)
 
     })
     ResponseEntity<GetTransferDto> transferRequest(
-            @Parameter(description = "The transactionRequestId, the source, target accounts and the amount to be transferred.", required = true) NewTransferDto newTransferDTO,
-            @Parameter(description = "Enforces serializable isolation or pessimistic/optimistic locking, depending on its value.", required = true) ConcurrencyControlMode concurrencyControlMode)
+            @Parameter(description = "The transactionRequestId, the source, target accounts and the amount to be transferred.", required = true) NewTransferDto newTransferDTO)
             throws MoneyTransferException;
 
-    @Operation(summary = "Fetches all accounts, with a limitation to the maximum number of results.")
-    ResponseEntity<List<GetAccountDto>> getAccounts(
-            @Parameter(description = "The maximum number of accounts that will be fetched.", required = true) int maxRecords);
+    @Operation(summary = "Fetches accounts with a maximum number of records parameter.")
+    ResponseEntity<List<GetAccountDto>> getAccounts(@Parameter(description = "The page maxRecords.", required = true) int maxRecords);
 
-    @Operation(summary = "Fetches all transactions, with a limitation to the maximum number of results.")
+    @Operation(summary = "Fetches accounts with a maximum number of records parameter.")
     ResponseEntity<List<GetTransferDto>> getTransactions(
-            @Parameter(description = "The maximum number of transactions that will be fetched.", required = true) @PathVariable int maxRecords);
+            int maxRecords);
 
 }

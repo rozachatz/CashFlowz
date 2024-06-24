@@ -6,7 +6,6 @@ import com.moneytransfer.dto.NewTransferDto;
 import com.moneytransfer.dto.PageResponseDto;
 import com.moneytransfer.entity.Account;
 import com.moneytransfer.entity.Transaction;
-import com.moneytransfer.enums.ConcurrencyControlMode;
 import com.moneytransfer.exceptions.MoneyTransferException;
 import com.moneytransfer.exceptions.ResourceNotFoundException;
 import com.moneytransfer.service.GetAccountService;
@@ -33,9 +32,8 @@ public class MoneyTransferAPIControllerImpl
     private final MoneyTransferService moneyTransferService;
 
     @PostMapping("/transfer")
-    public ResponseEntity<GetTransferDto> transferRequest(@RequestBody NewTransferDto newTransferDto,
-                                                          @RequestParam ConcurrencyControlMode concurrencyControlMode) throws MoneyTransferException {
-        Transaction transaction = moneyTransferService.transfer(newTransferDto, concurrencyControlMode);
+    public ResponseEntity<GetTransferDto> transferRequest(@RequestBody NewTransferDto newTransferDto) throws MoneyTransferException {
+        Transaction transaction = moneyTransferService.transferSerializable(newTransferDto);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new GetTransferDto(transaction.getTransactionId(), transaction.getSourceAccount().getAccountId(),
                         transaction.getTargetAccount().getAccountId(), transaction.getAmount(),
@@ -43,9 +41,9 @@ public class MoneyTransferAPIControllerImpl
     }
 
     @GetMapping("/transactions/{maxRecords}")
-    public ResponseEntity<List<GetTransferDto>> getTransactions(@PathVariable int maxRecords) {
+    public ResponseEntity<List<GetTransferDto>> getTransactions(int maxRecords) {
         PageResponseDto<Transaction> transactions = getTransactionService.getTransactions(maxRecords);
-        return ResponseEntity.ok(transactions.entities().stream()
+        return ResponseEntity.ok(transactions.content().stream()
                 .map(transaction -> new GetTransferDto(transaction.getTransactionId(),
                         transaction.getSourceAccount().getAccountId(), transaction.getTargetAccount().getAccountId(),
                         transaction.getAmount(), transaction.getCurrency())).collect(Collectors.toList()));
@@ -63,7 +61,7 @@ public class MoneyTransferAPIControllerImpl
     @GetMapping("/accounts/{maxRecords}")
     public ResponseEntity<List<GetAccountDto>> getAccounts(@PathVariable int maxRecords) {
         PageResponseDto<Account> accounts = getAccountService.getAccounts(maxRecords);
-        return ResponseEntity.ok(accounts.entities().stream()
+        return ResponseEntity.ok(accounts.content().stream()
                 .map(account -> new GetAccountDto(account.getAccountId(), account.getBalance(), account.getCurrency()))
                 .collect(Collectors.toList()));
     }

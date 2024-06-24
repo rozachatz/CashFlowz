@@ -19,6 +19,8 @@ import java.util.Map;
 @Configuration
 @Profile("!test")
 public class CacheConfig {
+    private static final String[] cacheNames = {"moneyTransferRequestsCache", "exchangeRatesCache"};
+
     @Bean
     public RedisCacheManager cacheManager(RedisConnectionFactory redisConnectionFactory) {
         Map<String, RedisCacheConfiguration> cacheConfigurations = getCacheConfigurations();
@@ -29,8 +31,8 @@ public class CacheConfig {
 
     private Map<String, RedisCacheConfiguration> getCacheConfigurations() {
         Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
-        cacheConfigurations.put("moneyTransferRequestsCache", RedisCacheConfiguration.defaultCacheConfig().entryTtl(Duration.ofDays(1)));
-        cacheConfigurations.put("exchangeRatesCache", RedisCacheConfiguration.defaultCacheConfig().entryTtl(Duration.ofSeconds(10)));
+        cacheConfigurations.put(cacheNames[0], RedisCacheConfiguration.defaultCacheConfig().entryTtl(Duration.ofDays(1)));
+        cacheConfigurations.put(cacheNames[1], RedisCacheConfiguration.defaultCacheConfig().entryTtl(Duration.ofSeconds(10)));
         return cacheConfigurations;
     }
 }
