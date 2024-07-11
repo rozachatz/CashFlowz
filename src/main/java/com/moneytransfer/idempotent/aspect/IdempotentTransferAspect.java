@@ -1,21 +1,30 @@
 package com.moneytransfer.idempotent.aspect;
 
 import com.moneytransfer.dto.NewTransferDto;
-import com.moneytransfer.entity.Transaction;
-import com.moneytransfer.entity.TransactionRequest;
-import com.moneytransfer.exceptions.InsufficientRequestDataException;
+import com.moneytransfer.entity.Transfer;
+import com.moneytransfer.entity.TransferRequest;
+import com.moneytransfer.enums.TransferRequestStatus;
 import com.moneytransfer.exceptions.MoneyTransferException;
 import com.moneytransfer.exceptions.RequestConflictException;
 import com.moneytransfer.idempotent.annotation.IdempotentTransferRequest;
-import com.moneytransfer.service.RequestService;
+import com.moneytransfer.idempotent.event.NewTransferRequestEvent;
+import com.moneytransfer.idempotent.event.TransferRequestCompletionBusinessErrorEvent;
+import com.moneytransfer.idempotent.event.TransferRequestCompletionRollbackEvent;
+import com.moneytransfer.idempotent.event.TransferRequestCompletionSuccessEvent;
 import lombok.RequiredArgsConstructor;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
-import org.springframework.http.HttpStatus;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.DefaultTransactionDefinition;
 
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 /**
  * AOP aspect for handling idempotent transfer requests.
@@ -26,7 +35,9 @@ import java.util.Optional;
 @Aspect
 @RequiredArgsConstructor
 public class IdempotentTransferAspect {
-    private final RequestService requestService;
+    private ThreadLocal<TransactionStatus> currentTransactionStatus = new ThreadLocal<>();
+    private final PlatformTransactionManager transactionManager;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     /**
      * Handles an idempotent transfer request.
@@ -36,106 +47,140 @@ public class IdempotentTransferAspect {
      * @param proceedingJoinPoint
      * @param idempotentTransferRequest
      * @param newTransferDto
-     * @return It retrieves the associated {@link Transaction}
-     * @throws Throwable Throws an exception if a business error occurs during the money transfer operation.
+     * @return It retrieves the associated {@link Transfer}.
+     * @throws Throwable Throws an exception if an error occurs.
      */
     @Around("@annotation(idempotentTransferRequest) && args(newTransferDto)")
-    public Transaction handleIdempotentTransferRequest(ProceedingJoinPoint proceedingJoinPoint, IdempotentTransferRequest idempotentTransferRequest, NewTransferDto newTransferDto) throws Throwable {
-        return handleRequest(newTransferDto, proceedingJoinPoint);
+    public Transfer handleIdempotentTransferRequest(ProceedingJoinPoint proceedingJoinPoint, IdempotentTransferRequest idempotentTransferRequest, NewTransferDto newTransferDto) throws Throwable {
+        createNewTransaction(TransactionDefinition.ISOLATION_DEFAULT);
+        try {
+            Transfer transfer = processIdempotentTransferRequest(newTransferDto, proceedingJoinPoint);
+            transactionManager.commit(currentTransactionStatus.get());
+            return transfer;
+        } catch (RuntimeException e) {
+            transactionManager.rollback(currentTransactionStatus.get());
+            throw e;
+        } finally {
+            currentTransactionStatus.remove();
+        }
     }
 
     /**
      * Handles the request for money transfer, encapsulated in {@link NewTransferDto}.
-     * Gets or creates a {@link TransactionRequest} resource.
+     * Gets or creates a {@link TransferRequest} resource.
      * Validates the idempotency of the request.
-     * For status {@link com.moneytransfer.enums.TransactionRequestStatus#IN_PROGRESS},
-     * the intercepted transfer method is executed.
-     * For status {@link com.moneytransfer.enums.TransactionRequestStatus#COMPLETED},
-     * an existing {@link Transaction} is retrieved, or an exception is thrown.
+     * For status {@link TransferRequestStatus#IN_PROGRESS}, the target transfer method is executed.
+     * For status {@link TransferRequestStatus#COMPLETED}, an existing {@link Transfer} is retrieved, or a business exception is thrown.
      *
      * @param newTransferDto
      * @param proceedingJoinPoint
-     * @return a new Transaction
-     * @throws Throwable Throws an exception if the request failed e.g., is not associated with a {@link Transaction}.
+     * @return a new Transfer
+     * @throws Throwable Throws an exception if the request failed e.g., is not associated with a {@link Transfer}.
      */
-    private Transaction handleRequest(final NewTransferDto newTransferDto, final ProceedingJoinPoint proceedingJoinPoint) throws Throwable {
-        var request = getOrCreateRequest(newTransferDto);
-        validateIdempotent(request, newTransferDto);
-        return switch (request.getTransactionRequestStatus()) {
-            case IN_PROGRESS -> processTransfer(request, proceedingJoinPoint);
-            case COMPLETED -> getTransactionOrThrow(request);
+    private Transfer processIdempotentTransferRequest(final NewTransferDto newTransferDto, final ProceedingJoinPoint proceedingJoinPoint) throws Throwable {
+        var transferRequest = getTransferRequest(newTransferDto);
+        validateIdempotent(transferRequest, newTransferDto);
+        return switch (transferRequest.getTransferRequestStatus()) {
+            case IN_PROGRESS -> {
+                transactionManager.commit(currentTransactionStatus.get());
+                yield processTransfer(transferRequest, proceedingJoinPoint);
+            }
+            case COMPLETED -> getTransactionOrThrow(transferRequest);
         };
     }
 
+    private TransferRequest getTransferRequest(NewTransferDto newTransferDto) throws InterruptedException, ExecutionException {
+        CompletableFuture<TransferRequest> future = new CompletableFuture<>();
+        applicationEventPublisher.publishEvent(new NewTransferRequestEvent(newTransferDto, future));
+        return future.get();
+    }
+
+
     /**
-     * Gets or submits a {@link TransactionRequest}.
+     * Validates the idempotency of a new transfer request, encapsulated in {@link NewTransferDto}.
+     * The persisted {@link TransferRequest} is converted to a {@link NewTransferDto} to perform the comparison.
      *
+     * @param transferRequest
      * @param newTransferDto
-     * @return TransactionRequest
+     * @throws RequestConflictException
      */
-    private TransactionRequest getOrCreateRequest(final NewTransferDto newTransferDto) {
-        var transactionRequest = requestService.getRequest(newTransferDto.requestId());
-        return Optional.ofNullable(transactionRequest).orElseGet(() -> {
-            try {
-                return requestService.createRequest(newTransferDto);
-            } catch (InsufficientRequestDataException e) {
-                throw new RuntimeException(e);
-            }
-        });
+    private void validateIdempotent(final TransferRequest transferRequest, final NewTransferDto newTransferDto) throws RequestConflictException {
+        if (!newTransferDto.equals(transferRequest.toNewTransferDto())) {
+            var errorMessage = "The JSON body does not match with transferRequest id " + transferRequest.getTransferRequestId() + ".";
+            throw new RequestConflictException(errorMessage);
+        }
+    }
+
+    /**
+     * Gets a Transfer entity or throws an exception.
+     *
+     * @param transferRequest
+     * @return Transfer
+     * @throws RequestConflictException for a business error.
+     */
+    private Transfer getTransactionOrThrow(final TransferRequest transferRequest) throws RequestConflictException {
+        return Optional.ofNullable(transferRequest.getTransfer())
+                .orElseThrow(() -> new RequestConflictException(transferRequest.getInfoMessage(), transferRequest.getHttpStatus()));
     }
 
     /**
      * Executes the intercepted method.
-     * A {@link Transaction} object is returned only if the intercepted transfer method operation completed successfully.
-     * Completes the {@link TransactionRequest}.
+     * A {@link Transfer} object is returned only if the intercepted transfer method operation completed successfully.
+     * Completes the {@link TransferRequest}.
      *
-     * @param transactionRequest
+     * @param transferRequest
      * @param proceedingJoinPoint
-     * @return a new {@link Transaction} object
-     * @throws Throwable Propagates the exception thrown by the intercepted transfer method.
+     * @return a new {@link Transfer} object
+     * @throws Throwable Propagates the exception thrown by the target transfer method.
      */
-    private Transaction processTransfer(final TransactionRequest transactionRequest, final ProceedingJoinPoint proceedingJoinPoint) throws Throwable {
-        Transaction transaction = null;
-        HttpStatus httpStatus = null;
-        String infoMessage = null;
+    private Transfer processTransfer(final TransferRequest transferRequest, final ProceedingJoinPoint proceedingJoinPoint) throws Throwable {
+        Transfer transfer = null;
         try {
-            transaction = (Transaction) proceedingJoinPoint.proceed();
-            httpStatus = HttpStatus.CREATED;
-            infoMessage = httpStatus.getReasonPhrase();
-            return transaction;
-        } catch (MoneyTransferException e) {
-            infoMessage = e.getMessage();
-            httpStatus = e.getHttpStatus();
+            transfer = executeTransfer(transferRequest, proceedingJoinPoint);
+            createNewTransaction(TransactionDefinition.ISOLATION_DEFAULT);
+            applicationEventPublisher.publishEvent(new TransferRequestCompletionSuccessEvent(transferRequest, transfer));
+            return transfer;
+        } catch (RuntimeException e) {
+            if (transfer != null) {
+                applicationEventPublisher.publishEvent(new TransferRequestCompletionRollbackEvent(transfer));
+            }
             throw e;
-        } finally {
-            requestService.completeRequest(transactionRequest, transaction, httpStatus, infoMessage);
         }
     }
 
     /**
-     * Gets the persisted Transaction or throws an exception.
+     * Executes the target transfer method and defines its transactional boundaries.
      *
-     * @param transactionRequest
-     * @return Transaction
-     * @throws Throwable
+     * @param proceedingJoinPoint Exposes proceed() for the target method execution.
+     * @return a new Transfer entity
+     * @throws MoneyTransferException if an error occurs during money transfer.
      */
-    private Transaction getTransactionOrThrow(final TransactionRequest transactionRequest) throws RequestConflictException {
-        return Optional.ofNullable(transactionRequest.getTransaction())
-                .orElseThrow(() -> new RequestConflictException(transactionRequest.getInfoMessage(), transactionRequest.getHttpStatus()));
-    }
-
-    /**
-     * Validates the idempotency of a new transfer request, encapsulated in {@link NewTransferDto}.
-     * The persisted {@link TransactionRequest} is converted to a {@link NewTransferDto} to perform the comparison.
-     *
-     * @param transactionRequest
-     * @param newTransferDto
-     * @throws RequestConflictException
-     */
-    private void validateIdempotent(final TransactionRequest transactionRequest, final NewTransferDto newTransferDto) throws RequestConflictException {
-        if (!newTransferDto.equals(transactionRequest.toNewTransferDto())) {
-            var errorMessage = "The JSON body does not match with transactionRequest id " + transactionRequest.getRequestId() + ".";
-            throw new RequestConflictException(errorMessage);
+    private Transfer executeTransfer(TransferRequest transferRequest, ProceedingJoinPoint proceedingJoinPoint) throws MoneyTransferException {
+        try {
+            createNewTransaction(TransactionDefinition.ISOLATION_SERIALIZABLE);
+            var transfer = (Transfer) proceedingJoinPoint.proceed();
+            transactionManager.commit(currentTransactionStatus.get());
+            return transfer;
+        } catch (Throwable e) {
+            if (e instanceof MoneyTransferException mte) {
+                applicationEventPublisher.publishEvent(new TransferRequestCompletionBusinessErrorEvent(transferRequest, mte));
+                throw mte;
+            }
+            throw new RuntimeException(e);
         }
     }
+
+    private void createNewTransaction(int isolation) {
+        DefaultTransactionDefinition def = getTransactionDefinition(isolation);
+        TransactionStatus transactionStatus = transactionManager.getTransaction(def);
+        currentTransactionStatus.set(transactionStatus);
+    }
+
+    private DefaultTransactionDefinition getTransactionDefinition(int isolation) {
+        DefaultTransactionDefinition def = new DefaultTransactionDefinition(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        def.setIsolationLevel(isolation);
+        def.setName("IdempotentTransferAspectTransaction_" + System.currentTimeMillis());
+        return def;
+    }
+
 }

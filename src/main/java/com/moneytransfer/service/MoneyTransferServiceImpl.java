@@ -5,14 +5,15 @@ import com.moneytransfer.dao.CurrencyExchangeDao;
 import com.moneytransfer.dto.GetAccountsForNewTransferDto;
 import com.moneytransfer.dto.NewTransferDto;
 import com.moneytransfer.entity.Account;
-import com.moneytransfer.entity.Transaction;
+import com.moneytransfer.entity.Transfer;
 import com.moneytransfer.enums.Currency;
 import com.moneytransfer.enums.LockControlMode;
+import com.moneytransfer.enums.TransferStatus;
 import com.moneytransfer.exceptions.InsufficientBalanceException;
 import com.moneytransfer.exceptions.MoneyTransferException;
 import com.moneytransfer.exceptions.SameAccountException;
 import com.moneytransfer.idempotent.annotation.IdempotentTransferRequest;
-import com.moneytransfer.repository.TransactionRepository;
+import com.moneytransfer.repository.TransferRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 
+import static org.springframework.transaction.annotation.Propagation.NESTED;
 import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 
 /**
@@ -28,13 +30,20 @@ import static org.springframework.transaction.annotation.Propagation.REQUIRES_NE
 @Service
 @RequiredArgsConstructor
 class MoneyTransferServiceImpl implements MoneyTransferService {
-    private final CurrencyExchangeService currencyExchangeDao;
+    private final CurrencyExchangeService currencyExchangeService;
     private final GetAccountService getAccountService;
-    private final TransactionRepository transactionRepository;
+    private final TransferRepository transferRepository;
 
-    @Transactional(propagation = REQUIRES_NEW)
-    @IdempotentTransferRequest
-    public Transaction transferWithLocking(final NewTransferDto newTransferDto, final LockControlMode lockControlMode) throws MoneyTransferException {
+    /**
+     * Transfer with optimistic or pessimistic locking.
+     *
+     * @param newTransferDto  The dto representing the transfer request.
+     * @param lockControlMode The lock control mode to use for the transfer operation.
+     * @return
+     * @throws MoneyTransferException
+     */
+    @Transactional(propagation = NESTED)
+    public Transfer transferWithLocking(final NewTransferDto newTransferDto, final LockControlMode lockControlMode) throws MoneyTransferException {
         return switch (lockControlMode) {
             case OPTIMISTIC_LOCKING -> transferOptimistic(newTransferDto);
             case PESSIMISTIC_LOCKING -> transferPessimistic(newTransferDto);
@@ -42,20 +51,29 @@ class MoneyTransferServiceImpl implements MoneyTransferService {
     }
 
 
+    /**
+     * Transfer money with no serializable isolation.
+     * For more information see <a href="https://www.baeldung.com/spring-transactional-propagation-isolation#5-serializable-isolation">...</a>.
+     *
+     * @param newTransferDto The data representing the transfer request.
+     * @return a Transfer
+     * @throws MoneyTransferException
+     */
     @IdempotentTransferRequest
-    @Transactional(propagation = REQUIRES_NEW, isolation = Isolation.SERIALIZABLE)
-    public Transaction transferSerializable(final NewTransferDto newTransferDto) throws MoneyTransferException {
+    @Transactional(isolation = Isolation.SERIALIZABLE, propagation = REQUIRES_NEW)
+    public Transfer transferSerializable(final NewTransferDto newTransferDto) throws MoneyTransferException {
         return transfer(newTransferDto);
     }
+
 
     /**
      * Transfer money with no resource locking.
      *
      * @param newTransferDto
-     * @return a new Transaction
+     * @return a new Transfer
      * @throws MoneyTransferException
      */
-    private Transaction transfer(final NewTransferDto newTransferDto) throws MoneyTransferException {
+    private Transfer transfer(final NewTransferDto newTransferDto) throws MoneyTransferException {
         var transferAccountsDto = getAccountService.getAccountPairByIds(newTransferDto.sourceAccountId(), newTransferDto.targetAccountId());
         return performTransfer(transferAccountsDto, newTransferDto);
     }
@@ -65,10 +83,10 @@ class MoneyTransferServiceImpl implements MoneyTransferService {
      * For more information see <a href="https://www.baeldung.com/jpa-optimistic-locking">...</a>.
      *
      * @param newTransferDto
-     * @return a new Transaction
+     * @return a new Transfer
      * @throws MoneyTransferException
      */
-    private Transaction transferOptimistic(final NewTransferDto newTransferDto) throws MoneyTransferException {
+    private Transfer transferOptimistic(final NewTransferDto newTransferDto) throws MoneyTransferException {
         var transferAccountsDto = getAccountService.getAccountPairByIdsOptimistic(newTransferDto.sourceAccountId(), newTransferDto.targetAccountId());
         return performTransfer(transferAccountsDto, newTransferDto);
     }
@@ -78,22 +96,30 @@ class MoneyTransferServiceImpl implements MoneyTransferService {
      * For more information see <a href="https://www.baeldung.com/jpa-pessimistic-locking">...</a>.
      *
      * @param newTransferDto
-     * @return a new Transaction
+     * @return a new Transfer
      * @throws MoneyTransferException
      */
-    private Transaction transferPessimistic(final NewTransferDto newTransferDto) throws MoneyTransferException {
+    private Transfer transferPessimistic(final NewTransferDto newTransferDto) throws MoneyTransferException {
         var transferAccountsDto = getAccountService.getAccountPairByIdsPessimistic(newTransferDto.sourceAccountId(), newTransferDto.targetAccountId());
         return performTransfer(transferAccountsDto, newTransferDto);
     }
 
-
-    private Transaction performTransfer(final GetAccountsForNewTransferDto getAccountsForNewTransferDto, final NewTransferDto newTransferDto) throws MoneyTransferException {
+    /**
+     * Validate and persist the resulting Transfer.
+     *
+     * @param getAccountsForNewTransferDto
+     * @param newTransferDto
+     * @return
+     * @throws MoneyTransferException
+     */
+    private Transfer performTransfer(final GetAccountsForNewTransferDto getAccountsForNewTransferDto, final NewTransferDto newTransferDto) throws MoneyTransferException {
         validateTransfer(getAccountsForNewTransferDto, newTransferDto.amount());
-        return persistTransfer(getAccountsForNewTransferDto, newTransferDto.amount());
+        return persistSuccessfulTransfer(getAccountsForNewTransferDto, newTransferDto.amount());
     }
 
     /**
      * Validates a money transfer operation according to acceptance criteria.
+     *
      * <p>
      * This method checks whether the money transfer meets specific criteria before proceeding with the transfer.
      * If the transfer does not meet the criteria, appropriate exceptions are thrown to indicate the failure.
@@ -101,8 +127,11 @@ class MoneyTransferServiceImpl implements MoneyTransferService {
      * <p>
      * Acceptance Criteria:
      * <ul>
+     *   <li>Happy Path.</li>
      *   <li>The source and target accounts must be different.</li>
      *   <li>The source account must have sufficient balance to cover the transfer amount.</li>
+     *   <li>Source/Target account not found.</li>
+     *   <li>Currency exchange operation failure.</li>
      * </ul>
      * </p>
      *
@@ -128,13 +157,12 @@ class MoneyTransferServiceImpl implements MoneyTransferService {
     }
 
 
-    private Transaction persistTransfer(final GetAccountsForNewTransferDto getAccountsForNewTransferDto, final BigDecimal amount) throws MoneyTransferException {
+    private Transfer persistSuccessfulTransfer(final GetAccountsForNewTransferDto getAccountsForNewTransferDto, final BigDecimal amount) throws MoneyTransferException {
         var sourceAccount = getAccountsForNewTransferDto.getSourceAccount();
         var targetAccount = getAccountsForNewTransferDto.getTargetAccount();
         transferAndExchange(sourceAccount, targetAccount, amount);
         var currency = sourceAccount.getCurrency();
-        var transaction = new Transaction(Generators.timeBasedEpochGenerator().generate(), sourceAccount, targetAccount, amount, currency);
-        return transactionRepository.save(transaction);
+        return transferRepository.save(new Transfer(Generators.timeBasedEpochGenerator().generate(), sourceAccount, targetAccount, amount, currency, TransferStatus.SUCCESSFUL));
     }
 
     private void transferAndExchange(Account sourceAccount, Account targetAccount, final BigDecimal amount) throws MoneyTransferException {
@@ -161,7 +189,7 @@ class MoneyTransferServiceImpl implements MoneyTransferService {
      */
     private BigDecimal exchangeSourceCurrency(final Account sourceAccount, final Account targetAccount, final BigDecimal amount) throws MoneyTransferException {
         if (!sourceAccount.getCurrency().equals(targetAccount.getCurrency())) {
-            return currencyExchangeDao.exchange(amount, sourceAccount.getCurrency(), targetAccount.getCurrency());
+            return currencyExchangeService.exchange(amount, sourceAccount.getCurrency(), targetAccount.getCurrency());
         }
         return amount;
     }

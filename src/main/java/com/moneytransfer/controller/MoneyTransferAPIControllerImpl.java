@@ -5,11 +5,11 @@ import com.moneytransfer.dto.GetTransferDto;
 import com.moneytransfer.dto.NewTransferDto;
 import com.moneytransfer.dto.PageResponseDto;
 import com.moneytransfer.entity.Account;
-import com.moneytransfer.entity.Transaction;
+import com.moneytransfer.entity.Transfer;
 import com.moneytransfer.exceptions.MoneyTransferException;
 import com.moneytransfer.exceptions.ResourceNotFoundException;
 import com.moneytransfer.service.GetAccountService;
-import com.moneytransfer.service.GetTransactionService;
+import com.moneytransfer.service.GetTransferService;
 import com.moneytransfer.service.MoneyTransferService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,34 +28,34 @@ import java.util.stream.Collectors;
 public class MoneyTransferAPIControllerImpl
         implements MoneyTransferAPIController {
     private final GetAccountService getAccountService;
-    private final GetTransactionService getTransactionService;
+    private final GetTransferService getTransferService;
     private final MoneyTransferService moneyTransferService;
 
     @PostMapping("/transfer")
     public ResponseEntity<GetTransferDto> transferRequest(@RequestBody NewTransferDto newTransferDto) throws MoneyTransferException {
-        Transaction transaction = moneyTransferService.transferSerializable(newTransferDto);
+        Transfer transfer = moneyTransferService.transferSerializable(newTransferDto);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new GetTransferDto(transaction.getTransactionId(), transaction.getSourceAccount().getAccountId(),
-                        transaction.getTargetAccount().getAccountId(), transaction.getAmount(),
-                        transaction.getCurrency()));
+                .body(new GetTransferDto(transfer.getTransferId(), transfer.getSourceAccount().getAccountId(),
+                        transfer.getTargetAccount().getAccountId(), transfer.getAmount(),
+                        transfer.getCurrency()));
     }
 
-    @GetMapping("/transactions/{maxRecords}")
-    public ResponseEntity<List<GetTransferDto>> getTransactions(int maxRecords) {
-        PageResponseDto<Transaction> transactions = getTransactionService.getTransactions(maxRecords);
+    @GetMapping("/transfers/{maxRecords}")
+    public ResponseEntity<List<GetTransferDto>> getTransfers(int maxRecords) {
+        PageResponseDto<Transfer> transactions = getTransferService.getTransfers(maxRecords);
         return ResponseEntity.ok(transactions.content().stream()
-                .map(transaction -> new GetTransferDto(transaction.getTransactionId(),
+                .map(transaction -> new GetTransferDto(transaction.getTransferId(),
                         transaction.getSourceAccount().getAccountId(), transaction.getTargetAccount().getAccountId(),
                         transaction.getAmount(), transaction.getCurrency())).collect(Collectors.toList()));
     }
 
-    @GetMapping("/transaction/{id}")
-    public ResponseEntity<GetTransferDto> getTransactionById(@PathVariable UUID id) throws ResourceNotFoundException {
-        Transaction transaction = getTransactionService.getTransactionById(id);
+    @GetMapping("/transfer/{id}")
+    public ResponseEntity<GetTransferDto> getTransferById(@PathVariable UUID id) throws ResourceNotFoundException {
+        Transfer transfer = getTransferService.getTransferById(id);
         return ResponseEntity.ok(
-                new GetTransferDto(transaction.getTransactionId(), transaction.getSourceAccount().getAccountId(),
-                        transaction.getTargetAccount().getAccountId(), transaction.getAmount(),
-                        transaction.getCurrency()));
+                new GetTransferDto(transfer.getTransferId(), transfer.getSourceAccount().getAccountId(),
+                        transfer.getTargetAccount().getAccountId(), transfer.getAmount(),
+                        transfer.getCurrency()));
     }
 
     @GetMapping("/accounts/{maxRecords}")

@@ -18,16 +18,16 @@ import java.util.UUID;
 
 /**
  * Controller handling money transfer requests
- * and retrieval of account/transaction resources.
+ * and retrieval of account/transfer resources.
  */
 public interface MoneyTransferAPIController {
-    @Operation(summary = "Gets transaction by id.")
+    @Operation(summary = "Gets transfer by id.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Transaction with the given id was found!", content = {
+            @ApiResponse(responseCode = "200", description = "Transfer with the given id was found!", content = {
                     @Content(mediaType = "application/json", schema = @Schema(implementation = GetTransferDto.class))}),
-            @ApiResponse(responseCode = "404", description = "No transaction with the given id was found!", content = @Content)})
-    ResponseEntity<GetTransferDto> getTransactionById(
-            @Parameter(description = "The transaction id.", required = true) UUID transactionId)
+            @ApiResponse(responseCode = "404", description = "No transfer with the given id was found!", content = @Content)})
+    ResponseEntity<GetTransferDto> getTransferById(
+            @Parameter(description = "The transfer id.", required = true) UUID transferId)
             throws ResourceNotFoundException;
 
     @Operation(summary = "Gets account by id.")
@@ -39,7 +39,7 @@ public interface MoneyTransferAPIController {
             @Parameter(description = "The account id.", required = true) UUID accountId)
             throws ResourceNotFoundException;
 
-    @Operation(summary = "Performs an idempotent transfer request. The currency of the transaction is identical to the source's.")
+    @Operation(summary = "Performs an idempotent transfer request. The currency of the transfer is identical to the source's.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Transfer request completed successfully.", content = {
                     @Content(mediaType = "application/json", schema = @Schema(implementation = GetTransferDto.class))}),
@@ -50,14 +50,14 @@ public interface MoneyTransferAPIController {
 
     })
     ResponseEntity<GetTransferDto> transferRequest(
-            @Parameter(description = "The transactionRequestId, the source, target accounts and the amount to be transferred.", required = true) NewTransferDto newTransferDTO)
+            @Parameter(description = "The transferRequestId, the source, target accounts and the amount to be transferred.", required = true) NewTransferDto newTransferDTO)
             throws MoneyTransferException;
 
     @Operation(summary = "Fetches accounts with a maximum number of records parameter.")
     ResponseEntity<List<GetAccountDto>> getAccounts(@Parameter(description = "The page maxRecords.", required = true) int maxRecords);
 
     @Operation(summary = "Fetches accounts with a maximum number of records parameter.")
-    ResponseEntity<List<GetTransferDto>> getTransactions(
+    ResponseEntity<List<GetTransferDto>> getTransfers(
             int maxRecords);
 
 }

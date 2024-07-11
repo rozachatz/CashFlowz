@@ -2,181 +2,87 @@ package com.moneytransfer.idempotent.aspect;
 
 import com.moneytransfer.dto.NewTransferDto;
 import com.moneytransfer.entity.Account;
-import com.moneytransfer.entity.Transaction;
-import com.moneytransfer.entity.TransactionRequest;
+import com.moneytransfer.entity.Transfer;
+import com.moneytransfer.entity.TransferRequest;
 import com.moneytransfer.enums.Currency;
-import com.moneytransfer.enums.TransactionRequestStatus;
+import com.moneytransfer.enums.TransferRequestStatus;
+import com.moneytransfer.enums.TransferStatus;
 import com.moneytransfer.exceptions.MoneyTransferException;
 import com.moneytransfer.exceptions.RequestConflictException;
-import com.moneytransfer.idempotent.annotation.IdempotentTransferRequest;
-import com.moneytransfer.service.RequestService;
+import com.moneytransfer.idempotent.event.NewTransferRequestEvent;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.HttpStatus;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-@ContextConfiguration(classes = {IdempotentTransferAspect.class})
-@ExtendWith(SpringExtension.class)
-@ActiveProfiles("test")
+@ExtendWith(MockitoExtension.class)
 class IdempotentTransferAspectTest {
 
-    @Autowired
-    private IdempotentTransferAspect idempotentTransferAspect;
-
-    @MockBean
-    private RequestService requestService;
-
+    private final Account sourceAccount, targetAccount;
+    private final NewTransferDto newTransferDto;
+    @Mock
+    private PlatformTransactionManager transactionManager;
+    @Mock
+    private ApplicationEventPublisher applicationEventPublisher;
     @Mock
     private ProceedingJoinPoint proceedingJoinPoint;
+    @InjectMocks
+    private IdempotentTransferAspect idempotentTransferAspect;
 
-    private Account sourceAccount, targetAccount;
+    IdempotentTransferAspectTest() {
+        this.sourceAccount = new Account(0, UUID.randomUUID(), "Name1", BigDecimal.TEN, Currency.EUR, LocalDateTime.now());
+        this.targetAccount = new Account(0, UUID.randomUUID(), "Name2", BigDecimal.TEN, Currency.USD, LocalDateTime.now());
+        newTransferDto = new NewTransferDto(UUID.randomUUID(), sourceAccount.getAccountId(), targetAccount.getAccountId(), BigDecimal.ONE);
+    }
 
 
     @BeforeEach
     public void setup() {
-        sourceAccount = new Account(0, UUID.randomUUID(), "Name1", BigDecimal.TEN, Currency.EUR, LocalDateTime.now());
-        targetAccount = new Account(0, UUID.randomUUID(), "Name2", BigDecimal.TEN, Currency.USD, LocalDateTime.now());
+        doReturn(null).when(transactionManager).getTransaction(any());
+        doNothing().when(transactionManager).commit(any());
+        TransferRequest transferRequest = new TransferRequest(newTransferDto.transferRequestId(), newTransferDto.amount(), newTransferDto.sourceAccountId(), newTransferDto.targetAccountId(), TransferRequestStatus.IN_PROGRESS, null, null, null);
+        doAnswer(invocation -> {
+            NewTransferRequestEvent event = invocation.getArgument(0);
+            event.future().complete(transferRequest);
+            return null;
+        }).when(applicationEventPublisher).publishEvent(any(NewTransferRequestEvent.class));
     }
 
 
-    /**
-     * Tests the {@link IdempotentTransferAspect#handleIdempotentTransferRequest(ProceedingJoinPoint, IdempotentTransferRequest, NewTransferDto)}
-     * method to ensure that the process of completing a successful transfer request results in the expected interactions and outcome.
-     *
-     * <p>This test verifies that:
-     * <ul>
-     *   <li> A transaction request is created.</li>
-     *   <li> The transaction request is then completed with all fields filled. The http status and infoMessage fields should indicate success
-     *   and the appropriate Transaction object should be also persisted.</li>
-     *   <li> The method under test returns the appropriate Transaction object.</li>
-     * </ul>
-     *
-     * @throws Throwable if any exception is thrown during the money transfer method execution.
-     */
     @Test
-    void test_Completion_SuccessfulRequest() throws Throwable {
-        BigDecimal amount = BigDecimal.ONE;
-        UUID requestId = UUID.randomUUID();
-        NewTransferDto newTransferDto = new NewTransferDto(requestId, sourceAccount.getAccountId(), targetAccount.getAccountId(), amount);
-        TransactionRequest transactionRequest = new TransactionRequest(newTransferDto.requestId(), newTransferDto.amount(), newTransferDto.sourceAccountId(), newTransferDto.targetAccountId(), TransactionRequestStatus.IN_PROGRESS, null, null, null);
-        when(requestService.createRequest(newTransferDto)).thenReturn(transactionRequest);
-        Transaction transactionToBeReturned = new Transaction(UUID.randomUUID(), sourceAccount, targetAccount, amount, sourceAccount.getCurrency());
-        when(proceedingJoinPoint.proceed()).thenReturn(transactionToBeReturned);
-        Transaction transaction = idempotentTransferAspect.handleIdempotentTransferRequest(proceedingJoinPoint, null, newTransferDto);
-        Assertions.assertEquals(transaction, transactionToBeReturned);
-        verify(requestService, times(1)).createRequest(eq(newTransferDto));
-        verify(requestService, times(1)).completeRequest(eq(transactionRequest), eq(transaction), eq(HttpStatus.CREATED), eq(HttpStatus.CREATED.getReasonPhrase()));
+    void test_IdempotentBehavior_WrongPayload() throws Throwable {
+        idempotentTransferAspect.handleIdempotentTransferRequest(proceedingJoinPoint, null, newTransferDto);
+        NewTransferDto newTransferDto2 = new NewTransferDto(newTransferDto.transferRequestId(), newTransferDto.sourceAccountId(), newTransferDto.targetAccountId(), newTransferDto.amount().multiply(BigDecimal.TEN));
+        assertThrows(RequestConflictException.class, () -> idempotentTransferAspect.handleIdempotentTransferRequest(proceedingJoinPoint, null, newTransferDto2));
     }
 
-    /**
-     * Tests the {@link IdempotentTransferAspect#handleIdempotentTransferRequest(ProceedingJoinPoint, IdempotentTransferRequest, NewTransferDto)}
-     * method to ensure that the process of completing a failed transfer request results in the expected interactions and outcome.
-     *
-     * <p>This test verifies that:
-     * <ul>
-     *   <li>A transaction request is created.</li>
-     *   <li>The transaction request is completed. For a failed transfer request, no Transaction object should be persisted.</li>
-     *   <li>The http status and infoMessage fields of the request should be provided by the {@link MoneyTransferException} thrown.</li>
-     * </ul>
-     * </p>
-     *
-     * @throws Throwable if any exception is thrown during the money transfer method execution.
-     */
+
     @Test
-    void test_Completion_FailedRequest() throws Throwable {
-        BigDecimal amount = BigDecimal.ONE;
-        UUID requestId = UUID.randomUUID();
-        NewTransferDto newTransferDto = new NewTransferDto(requestId, sourceAccount.getAccountId(), targetAccount.getAccountId(), amount);
-        TransactionRequest transactionRequest = new TransactionRequest(newTransferDto.requestId(), newTransferDto.amount(), newTransferDto.sourceAccountId(), newTransferDto.targetAccountId(), TransactionRequestStatus.IN_PROGRESS, null, null, null);
-        when(requestService.createRequest(newTransferDto)).thenReturn(transactionRequest);
-        when(proceedingJoinPoint.proceed()).thenThrow(new MoneyTransferException("test"));
-        MoneyTransferException exception = assertThrows(MoneyTransferException.class, () -> idempotentTransferAspect.handleIdempotentTransferRequest(proceedingJoinPoint, null, newTransferDto));
-        verify(requestService, times(1)).createRequest(eq(newTransferDto));
-        verify(requestService, times(1)).completeRequest(eq(transactionRequest), eq(null), eq(exception.getHttpStatus()), eq(exception.getMessage()));
+    void test_IdempotentBehavior_HappyPath() throws Throwable {
+        when(proceedingJoinPoint.proceed()).thenReturn(new Transfer(newTransferDto.transferRequestId(), sourceAccount, targetAccount, newTransferDto.amount(), sourceAccount.getCurrency(), TransferStatus.SUCCESSFUL));
+        Transfer transfer1 = idempotentTransferAspect.handleIdempotentTransferRequest(proceedingJoinPoint, null, newTransferDto);
+        Transfer transfer2 = idempotentTransferAspect.handleIdempotentTransferRequest(proceedingJoinPoint, null, newTransferDto);
+        Assertions.assertEquals(transfer1, transfer2);
     }
 
-    /**
-     * Tests the {@link IdempotentTransferAspect#handleIdempotentTransferRequest(ProceedingJoinPoint, IdempotentTransferRequest, NewTransferDto)}
-     * method to verify that all fields of a completed {@link TransactionRequest} are considered in the idempotency validation.
-     *
-     * <p>This test ensures that: A subsequent transfer request with different amount but same requestId, account ids fields in the given {@link NewTransferDto}
-     * results in a {@link RequestConflictException}</p>
-     *
-     * @throws Throwable if any exception is thrown during the money transfer method execution.
-     */
-    @Test
-    void testIdempotency_NotValidRequest() throws Throwable {
-        BigDecimal amount = BigDecimal.ONE;
-        UUID requestId = UUID.randomUUID();
-        NewTransferDto newTransferDto1 = new NewTransferDto(requestId, sourceAccount.getAccountId(), targetAccount.getAccountId(), amount);
-        TransactionRequest transactionRequest = new TransactionRequest(newTransferDto1.requestId(), newTransferDto1.amount(), newTransferDto1.sourceAccountId(),
-                newTransferDto1.targetAccountId(), TransactionRequestStatus.IN_PROGRESS, null, null, null);
-        when(requestService.createRequest(newTransferDto1)).thenReturn(transactionRequest);
-        idempotentTransferAspect.handleIdempotentTransferRequest(proceedingJoinPoint, null, newTransferDto1);
-        NewTransferDto newTransferDto2 = new NewTransferDto(newTransferDto1.requestId(), newTransferDto1.sourceAccountId(), newTransferDto1.targetAccountId(),
-                newTransferDto1.amount().add(BigDecimal.ONE));
-        when(requestService.getRequest(requestId)).thenReturn(transactionRequest);
-        assertThrows(RequestConflictException.class,
-                () -> idempotentTransferAspect.handleIdempotentTransferRequest(proceedingJoinPoint, null, newTransferDto2));
-    }
 
-    /**
-     * Tests the idempotent behavior of {@link IdempotentTransferAspect#handleIdempotentTransferRequest(ProceedingJoinPoint, IdempotentTransferRequest, NewTransferDto)}
-     * method for the happy path in which the idempotent transfer request proceeds with the money transfer operation.
-     *
-     * <p>This test ensures that corresponding transfer request always gives the same result, i.e., an identical {@link Transaction} object.</p>
-     *
-     * @throws Throwable if any exception is thrown during the money transfer method execution.
-     */
     @Test
-    void testIdempotency_HappyPath() throws Throwable {
-        BigDecimal amount = BigDecimal.ONE;
-        UUID requestId = UUID.randomUUID();
-        NewTransferDto newTransferDto = new NewTransferDto(requestId, sourceAccount.getAccountId(), targetAccount.getAccountId(), amount);
-        TransactionRequest transactionRequest = new TransactionRequest(newTransferDto.requestId(), newTransferDto.amount(), newTransferDto.sourceAccountId(), newTransferDto.targetAccountId(), TransactionRequestStatus.IN_PROGRESS, null, null, null);
-        when(requestService.createRequest(newTransferDto)).thenReturn(transactionRequest);
-        when(proceedingJoinPoint.proceed()).thenReturn(new Transaction(UUID.randomUUID(), sourceAccount, targetAccount, amount, sourceAccount.getCurrency()));
-        Transaction transaction1 = idempotentTransferAspect.handleIdempotentTransferRequest(proceedingJoinPoint, null, newTransferDto);
-        when(requestService.getRequest(requestId)).thenReturn(transactionRequest);
-        Transaction transaction2 = idempotentTransferAspect.handleIdempotentTransferRequest(proceedingJoinPoint, null, newTransferDto);
-        Assertions.assertEquals(transaction1, transaction2);
-    }
-
-    /**
-     * Tests the idempotent behavior of {@link IdempotentTransferAspect#handleIdempotentTransferRequest(ProceedingJoinPoint, IdempotentTransferRequest, NewTransferDto)}
-     * method for a scenario where the idempotent transfer request does not proceed with the money transfer operation.
-     *
-     * <p>This test ensures that the corresponding transfer request always throws a {@link MoneyTransferException},
-     * with the same message and http status fields.</p>
-     *
-     * @throws Throwable if any exception is thrown during the money transfer method execution
-     */
-    @Test
-    void testIdempotency_NotHappyPath() throws Throwable {
-        BigDecimal amount = sourceAccount.getBalance();
-        UUID requestId = UUID.randomUUID();
-        NewTransferDto newTransferDto = new NewTransferDto(requestId, sourceAccount.getAccountId(), targetAccount.getAccountId(), amount);
-        TransactionRequest transactionRequest = new TransactionRequest(newTransferDto.requestId(), newTransferDto.amount(), newTransferDto.sourceAccountId(), newTransferDto.targetAccountId(), TransactionRequestStatus.IN_PROGRESS, null, null, null);
-        when(requestService.createRequest(newTransferDto)).thenReturn(transactionRequest);
+    void test_IdempotentBehavior_BusinessError() throws Throwable {
         when(proceedingJoinPoint.proceed()).thenThrow(new MoneyTransferException("test"));
         MoneyTransferException exception1 = assertThrows(MoneyTransferException.class, () -> idempotentTransferAspect.handleIdempotentTransferRequest(proceedingJoinPoint, null, newTransferDto));
-        when(requestService.getRequest(requestId)).thenReturn(transactionRequest);
         MoneyTransferException exception2 = assertThrows(MoneyTransferException.class, () -> idempotentTransferAspect.handleIdempotentTransferRequest(proceedingJoinPoint, null, newTransferDto));
         Assertions.assertEquals(exception1.getHttpStatus(), exception2.getHttpStatus());
         Assertions.assertEquals(exception1.getMessage(), exception2.getMessage());

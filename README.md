@@ -10,7 +10,7 @@
 
 ## Introduction
 
-CashFlowz is a Java application for seamless and secure financial transactions 💸 .
+CashFlowz is a Java application for seamless and secure financial transfers 💸 .
 
 ## API Documentation
 
@@ -31,7 +31,7 @@ All endpoints and their corresponding swagger documentation are defined in the M
 
 - #### GetTransactionService
 
-Gets all transactions within the system.
+Gets all transfers within the system.
 
 - #### GetAccountService
 
@@ -47,7 +47,7 @@ Performs currency exchange by retrieving the latest exchange rates from "https:/
 
 - #### RequestService
 
-Gets, submits and resolves all transaction requests, which are stored in a Redis cache (i.e., requestsCache).
+Gets, submits and resolves all transfer requests, which are stored in a Redis cache (i.e., requestsCache).
 
 ### Persistent Layer
 
@@ -67,15 +67,15 @@ The Account entity represents a bank account with the following prope
 
 #### Transaction
 
-The Transaction entity represents a financial transaction between two
+The Transaction entity represents a financial transfer between two
 
 | Field             | Description                           |         
 |-------------------|---------------------------------------|         
-| transaction_id    | Unique identifier of the transaction. |         
+| transaction_id    | Unique identifier of the transfer. |         
 | source_account_id | ID of the account sending the funds   |         
 | target_account_id | ID of the account receiving the funds |        
 | amount            | Amount being transferred              |         
-| currency          | currency of the transaction           |         
+| currency          | currency of the transfer           |         
 
 #### TransactionRequest
 
@@ -87,7 +87,7 @@ The TransactionRequest entity represents an idempotent transfer reque
 | source_account_id | ID of the account sending the funds          | 
 | target_account_id | ID of the account receiving the funds        | 
 | amount            | Amount of funds being transferred            | 
-| transaction       | the associated Transaction                   | 
+| transfer       | the associated Transaction                   | 
 | http_status       | http status of the associated post request.  | 
 | info_message      | detailed information for the request outcome | 
 

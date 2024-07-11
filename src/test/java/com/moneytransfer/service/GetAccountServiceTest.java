@@ -64,7 +64,7 @@ public class GetAccountServiceTest {
 
 
     @Test
-    void testGetTransactionById_Success() throws ResourceNotFoundException {
+    void testGetAccountById_Success() throws ResourceNotFoundException {
         Account account = accounts.get(0);
         when(accountRepository.findById(account.getAccountId())).thenReturn(Optional.of(account));
         Account result = getAccountService.getAccountById(account.getAccountId());

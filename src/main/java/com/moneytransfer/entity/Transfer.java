@@ -1,6 +1,7 @@
 package com.moneytransfer.entity;
 
 import com.moneytransfer.enums.Currency;
+import com.moneytransfer.enums.TransferStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -12,16 +13,16 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Entity that represents a financial transaction between two {@link Account} entities.
+ * Entity that represents a financial transfer between two {@link Account} entities.
  */
 @Entity
-@Table(name = "transactions")
+@Table(name = "transfer")
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor(access = lombok.AccessLevel.PRIVATE)
-public class Transaction implements Serializable {
+public class Transfer implements Serializable {
     @Id
-    private UUID transactionId;
+    private UUID transferId;
 
     @ManyToOne
     @JoinColumn(name = "source_account_id", referencedColumnName = "accountId")
@@ -35,9 +36,12 @@ public class Transaction implements Serializable {
 
     private Currency currency;
 
+    private TransferStatus transferStatus;
+
+
     @Override
     public int hashCode() {
-        return Objects.hash(transactionId);
+        return Objects.hash(transferId);
     }
 
     @Override
@@ -48,7 +52,7 @@ public class Transaction implements Serializable {
         if (obj == null || getClass() != obj.getClass()) {
             return false;
         }
-        Transaction other = (Transaction) obj;
-        return Objects.equals(transactionId, other.transactionId);
+        Transfer other = (Transfer) obj;
+        return Objects.equals(transferId, other.transferId);
     }
 }

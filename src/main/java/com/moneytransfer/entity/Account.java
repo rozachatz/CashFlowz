@@ -16,7 +16,7 @@ import java.util.UUID;
  * Entity that represents a bank account.
  */
 @Entity
-@Table(name = "accounts")
+@Table(name = "account")
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor(access = lombok.AccessLevel.PRIVATE)
