@@ -58,6 +58,6 @@ public interface MoneyTransferAPIController {
 
     @Operation(summary = "Fetches accounts with a maximum number of records parameter.")
     ResponseEntity<List<GetTransferDto>> getTransfers(
-            int maxRecords);
+            int maxRecords) throws ResourceNotFoundException;
 
 }

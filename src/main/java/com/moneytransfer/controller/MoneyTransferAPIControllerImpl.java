@@ -41,7 +41,7 @@ public class MoneyTransferAPIControllerImpl
     }
 
     @GetMapping("/transfers/{maxRecords}")
-    public ResponseEntity<List<GetTransferDto>> getTransfers(int maxRecords) {
+    public ResponseEntity<List<GetTransferDto>> getTransfers(int maxRecords) throws ResourceNotFoundException {
         PageResponseDto<Transfer> transactions = getTransferService.getTransfers(maxRecords);
         return ResponseEntity.ok(transactions.content().stream()
                 .map(transaction -> new GetTransferDto(transaction.getTransferId(),

@@ -30,9 +30,6 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class IdempotentTransferAspectTest {
-
-    private final Account sourceAccount, targetAccount;
-    private final NewTransferDto newTransferDto;
     @Mock
     private PlatformTransactionManager transactionManager;
     @Mock
@@ -41,6 +38,9 @@ class IdempotentTransferAspectTest {
     private ProceedingJoinPoint proceedingJoinPoint;
     @InjectMocks
     private IdempotentTransferAspect idempotentTransferAspect;
+
+    private final Account sourceAccount, targetAccount;
+    private final NewTransferDto newTransferDto;
 
     IdempotentTransferAspectTest() {
         this.sourceAccount = new Account(0, UUID.randomUUID(), "Name1", BigDecimal.TEN, Currency.EUR, LocalDateTime.now());
@@ -72,7 +72,7 @@ class IdempotentTransferAspectTest {
 
     @Test
     void test_IdempotentBehavior_HappyPath() throws Throwable {
-        when(proceedingJoinPoint.proceed()).thenReturn(new Transfer(newTransferDto.transferRequestId(), sourceAccount, targetAccount, newTransferDto.amount(), sourceAccount.getCurrency(), TransferStatus.SUCCESSFUL));
+        when(proceedingJoinPoint.proceed()).thenReturn(new Transfer(newTransferDto.transferRequestId(), sourceAccount, targetAccount, newTransferDto.amount(), sourceAccount.getCurrency(), TransferStatus.FUNDS_TRANSFERRED));
         Transfer transfer1 = idempotentTransferAspect.handleIdempotentTransferRequest(proceedingJoinPoint, null, newTransferDto);
         Transfer transfer2 = idempotentTransferAspect.handleIdempotentTransferRequest(proceedingJoinPoint, null, newTransferDto);
         Assertions.assertEquals(transfer1, transfer2);

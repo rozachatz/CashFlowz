@@ -25,6 +25,6 @@ public interface GetTransferService {
      * @param maxRecords The maximum number of records that will be returned.
      * @return PageResponseDto for the transactions.
      */
-    PageResponseDto<Transfer> getTransfers(int maxRecords);
+    PageResponseDto<Transfer> getTransfers(int maxRecords) throws ResourceNotFoundException;
 
 }

@@ -10,6 +10,6 @@ import java.util.UUID;
 public interface TransferRepository extends JpaRepository<Transfer, UUID> {
 
     @Modifying
-    @Query("UPDATE Transfer t SET t.transferStatus = com.moneytransfer.enums.TransferStatus.REFUNDED WHERE t.transferId =: transferId")
+    @Query("UPDATE Transfer t SET t.transferStatus = com.moneytransfer.enums.TransferStatus.FUNDS_REFUNDED WHERE t.transferId =: transferId")
     void updateRefundedTransfer(UUID transferId);
 }

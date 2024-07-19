@@ -6,6 +6,7 @@ import com.moneytransfer.entity.Transfer;
 import com.moneytransfer.enums.Currency;
 import com.moneytransfer.enums.TransferStatus;
 import com.moneytransfer.exceptions.MoneyTransferException;
+import com.moneytransfer.exceptions.ResourceNotFoundException;
 import com.moneytransfer.repository.AccountRepository;
 import com.moneytransfer.repository.TransferRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,7 +41,7 @@ public class TransferRequestServiceTest {
     public TransferRequestServiceTest() {
         this.account1 = new Account(0, UUID.randomUUID(), "testUsr", BigDecimal.ZERO, Currency.EUR, LocalDateTime.now());
         this.account2 = new Account(0, UUID.randomUUID(), "testUsr", BigDecimal.ZERO, Currency.EUR, LocalDateTime.now());
-        this.transfer = new Transfer(UUID.randomUUID(), account1, account2, BigDecimal.ZERO, account1.getCurrency(), TransferStatus.SUCCESSFUL);
+        this.transfer = new Transfer(UUID.randomUUID(), account1, account2, BigDecimal.ZERO, account1.getCurrency(), TransferStatus.FUNDS_TRANSFERRED);
 
     }
 
@@ -51,7 +52,7 @@ public class TransferRequestServiceTest {
     }
 
     @Test
-    public void test_CreateAndGetTransferRequest() {
+    public void test_CreateAndGetTransferRequest() throws ResourceNotFoundException {
         var transferRequestId = UUID.randomUUID();
         var newTransferDto = new NewTransferDto(transferRequestId, UUID.randomUUID(), UUID.randomUUID(), BigDecimal.ZERO);
         var transferRequestCreated = transferRequestService.createTransferRequest(newTransferDto);

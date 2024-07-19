@@ -35,9 +35,9 @@ import java.util.concurrent.ExecutionException;
 @Aspect
 @RequiredArgsConstructor
 public class IdempotentTransferAspect {
-    private ThreadLocal<TransactionStatus> currentTransactionStatus = new ThreadLocal<>();
     private final PlatformTransactionManager transactionManager;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final ThreadLocal<TransactionStatus> currentTransactionStatus = new ThreadLocal<>();
 
     /**
      * Handles an idempotent transfer request.
@@ -85,7 +85,7 @@ public class IdempotentTransferAspect {
                 transactionManager.commit(currentTransactionStatus.get());
                 yield processTransfer(transferRequest, proceedingJoinPoint);
             }
-            case COMPLETED -> getTransactionOrThrow(transferRequest);
+            case COMPLETED -> getTransferOrThrow(transferRequest);
         };
     }
 
@@ -118,7 +118,7 @@ public class IdempotentTransferAspect {
      * @return Transfer
      * @throws RequestConflictException for a business error.
      */
-    private Transfer getTransactionOrThrow(final TransferRequest transferRequest) throws RequestConflictException {
+    private Transfer getTransferOrThrow(final TransferRequest transferRequest) throws RequestConflictException {
         return Optional.ofNullable(transferRequest.getTransfer())
                 .orElseThrow(() -> new RequestConflictException(transferRequest.getInfoMessage(), transferRequest.getHttpStatus()));
     }
@@ -171,16 +171,10 @@ public class IdempotentTransferAspect {
     }
 
     private void createNewTransaction(int isolation) {
-        DefaultTransactionDefinition def = getTransactionDefinition(isolation);
-        TransactionStatus transactionStatus = transactionManager.getTransaction(def);
-        currentTransactionStatus.set(transactionStatus);
-    }
-
-    private DefaultTransactionDefinition getTransactionDefinition(int isolation) {
         DefaultTransactionDefinition def = new DefaultTransactionDefinition(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         def.setIsolationLevel(isolation);
         def.setName("IdempotentTransferAspectTransaction_" + System.currentTimeMillis());
-        return def;
+        TransactionStatus transactionStatus = transactionManager.getTransaction(def);
+        currentTransactionStatus.set(transactionStatus);
     }
-
 }

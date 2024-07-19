@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -19,8 +20,9 @@ import java.util.UUID;
 class GetTransferServiceImpl implements GetTransferService {
     private final TransferRepository transferRepository;
 
-    public PageResponseDto<Transfer> getTransfers(final int maxRecords) {
-        List<Transfer> transfers = transferRepository.findAll(Pageable.ofSize(maxRecords)).toList();
+    public PageResponseDto<Transfer> getTransfers(final int maxRecords) throws ResourceNotFoundException {
+        List<Transfer> transfers = Optional.of(transferRepository.findAll(Pageable.ofSize(maxRecords)).toList())
+                .orElseThrow(() -> new ResourceNotFoundException(Transfer.class));
         return new PageResponseDto<>(transfers);
     }
 

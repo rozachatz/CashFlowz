@@ -2,6 +2,7 @@ package com.moneytransfer.idempotent.listener;
 
 import com.moneytransfer.entity.TransferRequest;
 import com.moneytransfer.exceptions.MoneyTransferException;
+import com.moneytransfer.exceptions.ResourceNotFoundException;
 import com.moneytransfer.idempotent.event.NewTransferRequestEvent;
 import com.moneytransfer.idempotent.event.TransferRequestCompletionBusinessErrorEvent;
 import com.moneytransfer.idempotent.event.TransferRequestCompletionRollbackEvent;
@@ -15,8 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
-import java.util.Optional;
-
 @Component
 @RequiredArgsConstructor
 @Transactional
@@ -26,9 +25,15 @@ public class TransferRequestEventListener {
 
     @EventListener
     public void handleNewTransferRequest(NewTransferRequestEvent event) {
-        var transactionRequest = transferRequestService.getTransferRequest(event.newTransferDto().transferRequestId());
-        TransferRequest transferRequest = Optional.ofNullable(transactionRequest).orElseGet(() -> transferRequestService.createTransferRequest(event.newTransferDto()));
-        event.future().complete(transferRequest);
+        TransferRequest transferRequest = null;
+        try {
+            transferRequest = transferRequestService.getTransferRequest(event.newTransferDto().transferRequestId());
+        } catch (ResourceNotFoundException e) {
+            transferRequest = transferRequestService.createTransferRequest(event.newTransferDto());
+        } finally {
+            event.future().complete(transferRequest);
+        }
+
     }
 
     @EventListener

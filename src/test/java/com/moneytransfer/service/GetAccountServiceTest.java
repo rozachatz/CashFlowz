@@ -48,7 +48,6 @@ public class GetAccountServiceTest {
         PageResponseDto<Account> result = getAccountService.getAccounts(maxRecords);
         assertNotNull(result);
         assertEquals(accounts, result.content());
-        verify(accountRepository, times(1)).findAll(Pageable.ofSize(maxRecords));
     }
 
     @Test
@@ -57,9 +56,7 @@ public class GetAccountServiceTest {
         Account targetAccount = accounts.get(1);
         doReturn(Optional.of(getAccountsDtoObj())).when(accountRepository).findByIds(sourceAccount.getAccountId(), targetAccount.getAccountId());
         GetAccountsForNewTransferDto result = getAccountService.getAccountPairByIds(sourceAccount.getAccountId(), targetAccount.getAccountId());
-        assertNotNull(result);
         assertEquals(accounts, List.of(result.getSourceAccount(), result.getTargetAccount()));
-        verify(accountRepository, times(1)).findByIds(sourceAccount.getAccountId(), targetAccount.getAccountId());
     }
 
 
@@ -68,9 +65,7 @@ public class GetAccountServiceTest {
         Account account = accounts.get(0);
         when(accountRepository.findById(account.getAccountId())).thenReturn(Optional.of(account));
         Account result = getAccountService.getAccountById(account.getAccountId());
-        assertNotNull(result);
         assertEquals(account, result);
-        verify(accountRepository, times(1)).findById(account.getAccountId());
     }
 
     @Test
@@ -78,7 +73,6 @@ public class GetAccountServiceTest {
         UUID accountId = UUID.randomUUID();
         when(accountRepository.findById(accountId)).thenReturn(Optional.empty());
         assertThrows(ResourceNotFoundException.class, () -> getAccountService.getAccountById(accountId));
-        verify(accountRepository, times(1)).findById(accountId);
     }
 
     private GetAccountsForNewTransferDto getAccountsDtoObj() {

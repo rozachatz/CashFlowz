@@ -8,6 +8,7 @@ import com.moneytransfer.enums.TransferRequestStatus;
 import com.moneytransfer.enums.TransferStatus;
 import com.moneytransfer.exceptions.InsufficientRequestDataException;
 import com.moneytransfer.exceptions.InvalidEntityStateException;
+import com.moneytransfer.exceptions.ResourceNotFoundException;
 import com.moneytransfer.repository.TransferRequestRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CachePut;
@@ -30,8 +31,8 @@ public class TransferRequestServiceImpl implements TransferRequestService {
 
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = "moneyTransferRequestsCache")
-    public TransferRequest getTransferRequest(final UUID requestId) {
-        return transferRequestRepository.findById(requestId).orElse(null);
+    public TransferRequest getTransferRequest(final UUID requestId) throws ResourceNotFoundException {
+        return transferRequestRepository.findById(requestId).orElseThrow(() -> new ResourceNotFoundException(TransferRequest.class, requestId));
     }
 
     @CachePut(cacheNames = "moneyTransferRequestsCache", key = "#result.transferRequestId")
@@ -60,10 +61,8 @@ public class TransferRequestServiceImpl implements TransferRequestService {
     }
 
     private void validateCompletionWithSuccess(UUID newTransactionRequestId, Transfer transfer) throws InsufficientRequestDataException, InvalidEntityStateException {
-        TransferStatus transferStatus = Optional.ofNullable(transfer)
-                .map(Transfer::getTransferStatus)
-                .orElseThrow(() -> new InsufficientRequestDataException(newTransactionRequestId));
-        if (!transferStatus.equals(TransferStatus.SUCCESSFUL)) {
+        Optional.ofNullable(transfer).orElseThrow(() -> new InsufficientRequestDataException(newTransactionRequestId));
+        if (!transfer.getTransferStatus().equals(TransferStatus.FUNDS_TRANSFERRED)) {
             throw new InvalidEntityStateException(Transfer.class, transfer.getTransferId());
         }
     }

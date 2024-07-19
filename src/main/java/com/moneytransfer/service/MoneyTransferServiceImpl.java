@@ -21,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 
-import static org.springframework.transaction.annotation.Propagation.NESTED;
 import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 
 /**
@@ -42,7 +41,7 @@ class MoneyTransferServiceImpl implements MoneyTransferService {
      * @return
      * @throws MoneyTransferException
      */
-    @Transactional(propagation = NESTED)
+    @Transactional(propagation = REQUIRES_NEW)
     public Transfer transferWithLocking(final NewTransferDto newTransferDto, final LockControlMode lockControlMode) throws MoneyTransferException {
         return switch (lockControlMode) {
             case OPTIMISTIC_LOCKING -> transferOptimistic(newTransferDto);
@@ -162,7 +161,7 @@ class MoneyTransferServiceImpl implements MoneyTransferService {
         var targetAccount = getAccountsForNewTransferDto.getTargetAccount();
         transferAndExchange(sourceAccount, targetAccount, amount);
         var currency = sourceAccount.getCurrency();
-        return transferRepository.save(new Transfer(Generators.timeBasedEpochGenerator().generate(), sourceAccount, targetAccount, amount, currency, TransferStatus.SUCCESSFUL));
+        return transferRepository.save(new Transfer(Generators.timeBasedEpochGenerator().generate(), sourceAccount, targetAccount, amount, currency, TransferStatus.FUNDS_TRANSFERRED));
     }
 
     private void transferAndExchange(Account sourceAccount, Account targetAccount, final BigDecimal amount) throws MoneyTransferException {

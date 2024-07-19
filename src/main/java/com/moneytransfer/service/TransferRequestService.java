@@ -3,8 +3,8 @@ package com.moneytransfer.service;
 import com.moneytransfer.dto.NewTransferDto;
 import com.moneytransfer.entity.Transfer;
 import com.moneytransfer.entity.TransferRequest;
-import com.moneytransfer.enums.TransferRequestStatus;
 import com.moneytransfer.exceptions.MoneyTransferException;
+import com.moneytransfer.exceptions.ResourceNotFoundException;
 import org.springframework.http.HttpStatus;
 
 import java.util.UUID;
@@ -22,7 +22,7 @@ public interface TransferRequestService {
      * @param transferRequestId
      * @return a TransferRequest
      */
-    TransferRequest getTransferRequest(UUID transferRequestId);
+    TransferRequest getTransferRequest(UUID transferRequestId) throws ResourceNotFoundException;
 
     /**
      * Creates a new {@link TransferRequest}.
@@ -44,7 +44,8 @@ public interface TransferRequestService {
     TransferRequest completeNewTransferRequestWithError(TransferRequest transferRequest, HttpStatus httpStatus, String infoMessage) throws MoneyTransferException;
 
     /**
-     *  Completes a {@link TransferRequest} with success.
+     * Completes a {@link TransferRequest} with success.
+     *
      * @param transferRequest
      * @param transfer
      * @return

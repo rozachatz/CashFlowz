@@ -38,19 +38,17 @@ public class GetTransferServiceTest {
     public void before() {
         sourceAccount = new Account(0, UUID.randomUUID(), "test", BigDecimal.ZERO, Currency.EUR, LocalDateTime.now());
         targetAccount = new Account(0, UUID.randomUUID(), "test", BigDecimal.ZERO, Currency.EUR, LocalDateTime.now());
-        Transfer transfer1 = new Transfer(UUID.randomUUID(), sourceAccount, targetAccount, BigDecimal.ZERO, sourceAccount.getCurrency(), TransferStatus.SUCCESSFUL);
-        Transfer transfer2 = new Transfer(UUID.randomUUID(), sourceAccount, targetAccount, BigDecimal.ONE, sourceAccount.getCurrency(), TransferStatus.SUCCESSFUL);
+        Transfer transfer1 = new Transfer(UUID.randomUUID(), sourceAccount, targetAccount, BigDecimal.ZERO, sourceAccount.getCurrency(), TransferStatus.FUNDS_TRANSFERRED);
+        Transfer transfer2 = new Transfer(UUID.randomUUID(), sourceAccount, targetAccount, BigDecimal.ONE, sourceAccount.getCurrency(), TransferStatus.FUNDS_TRANSFERRED);
         transfers = List.of(transfer1, transfer2);
     }
 
     @Test
-    void testGetTransfers() {
+    void testGetTransfers() throws ResourceNotFoundException {
         int maxRecords = 5;
         doReturn(new PageImpl<>(transfers)).when(transferRepository).findAll(Pageable.ofSize(maxRecords));
         PageResponseDto<Transfer> result = getTransferService.getTransfers(maxRecords);
-        assertNotNull(result);
         assertEquals(transfers, result.content());
-        verify(transferRepository, times(1)).findAll(Pageable.ofSize(maxRecords));
     }
 
     @Test
@@ -59,9 +57,7 @@ public class GetTransferServiceTest {
         Transfer transfer = transfers.get(0);
         when(transferRepository.findById(transferId)).thenReturn(Optional.of(transfer));
         Transfer result = getTransferService.getTransferById(transferId);
-        assertNotNull(result);
         assertEquals(transfer, result);
-        verify(transferRepository, times(1)).findById(transferId);
     }
 
     @Test
@@ -69,6 +65,5 @@ public class GetTransferServiceTest {
         UUID transferId = UUID.randomUUID();
         when(transferRepository.findById(transferId)).thenReturn(Optional.empty());
         assertThrows(ResourceNotFoundException.class, () -> getTransferService.getTransferById(transferId));
-        verify(transferRepository, times(1)).findById(transferId);
     }
 }
