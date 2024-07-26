@@ -4,7 +4,6 @@ import com.moneytransfer.dto.NewTransferDto;
 import com.moneytransfer.entity.Account;
 import com.moneytransfer.entity.Transfer;
 import com.moneytransfer.enums.Currency;
-import com.moneytransfer.enums.TransferStatus;
 import com.moneytransfer.exceptions.MoneyTransferException;
 import com.moneytransfer.exceptions.ResourceNotFoundException;
 import com.moneytransfer.repository.AccountRepository;
@@ -28,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @Testcontainers
 @ActiveProfiles("test")
+
 public class TransferRequestServiceTest {
     private final Transfer transfer;
     private final Account account1, account2;
@@ -39,9 +39,9 @@ public class TransferRequestServiceTest {
     private AccountRepository accountRepository;
 
     public TransferRequestServiceTest() {
-        this.account1 = new Account(0, UUID.randomUUID(), "testUsr", BigDecimal.ZERO, Currency.EUR, LocalDateTime.now());
-        this.account2 = new Account(0, UUID.randomUUID(), "testUsr", BigDecimal.ZERO, Currency.EUR, LocalDateTime.now());
-        this.transfer = new Transfer(UUID.randomUUID(), account1, account2, BigDecimal.ZERO, account1.getCurrency(), TransferStatus.FUNDS_TRANSFERRED);
+        account1 = new Account(0, UUID.randomUUID(), "testUsr", BigDecimal.ZERO, Currency.EUR, LocalDateTime.now());
+        account2 = new Account(0, UUID.randomUUID(), "testUsr", BigDecimal.ZERO, Currency.EUR, LocalDateTime.now());
+        transfer = new Transfer(UUID.randomUUID(), account1, account2, BigDecimal.ZERO, account1.getCurrency());
 
     }
 
@@ -67,7 +67,7 @@ public class TransferRequestServiceTest {
         var transferRequestId = UUID.randomUUID();
         var newTransferDto = new NewTransferDto(transferRequestId, UUID.randomUUID(), UUID.randomUUID(), BigDecimal.ZERO);
         var transactionRequest = transferRequestService.createTransferRequest(newTransferDto);
-        transferRequestService.completeNewTransferRequestWithError(transactionRequest, HttpStatus.INTERNAL_SERVER_ERROR, "test");
+        transferRequestService.completeFailedTransferRequest(transactionRequest, HttpStatus.INTERNAL_SERVER_ERROR, "test");
     }
 
     @Test
@@ -75,7 +75,6 @@ public class TransferRequestServiceTest {
         var transferRequestId = UUID.randomUUID();
         var newTransferDto = new NewTransferDto(transferRequestId, UUID.randomUUID(), UUID.randomUUID(), BigDecimal.ZERO);
         var transactionRequest = transferRequestService.createTransferRequest(newTransferDto);
-        transferRequestService.completeNewTransferRequestWithSuccess(transactionRequest, transfer);
+        transferRequestService.completeSuccessfulTransferRequest(transactionRequest, transfer);
     }
-
 }

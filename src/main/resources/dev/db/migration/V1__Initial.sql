@@ -11,7 +11,6 @@ CREATE TABLE transfer (
     transfer_id UUID PRIMARY KEY,
     source_account_id UUID,
     target_account_id UUID,
-    transfer_status VARCHAR(10),
     amount DECIMAL(19, 4),
     currency VARCHAR(255)
 );

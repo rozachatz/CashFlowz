@@ -3,7 +3,7 @@ package com.moneytransfer.service;
 import com.moneytransfer.dto.NewTransferDto;
 import com.moneytransfer.entity.Transfer;
 import com.moneytransfer.entity.TransferRequest;
-import com.moneytransfer.exceptions.MoneyTransferException;
+import com.moneytransfer.exceptions.InsufficientRequestDataException;
 import com.moneytransfer.exceptions.ResourceNotFoundException;
 import org.springframework.http.HttpStatus;
 
@@ -35,22 +35,22 @@ public interface TransferRequestService {
     /**
      * Completes a {@link TransferRequest} with  business error.
      *
-     * @param transferRequest
-     * @param httpStatus
-     * @param infoMessage
-     * @return
-     * @throws MoneyTransferException
+     * @param transferRequest The transfer request to complete.
+     * @param httpStatus      The associated http status.
+     * @param infoMessage     The associated exception message.
+     * @return The completed {@link TransferRequest}.
+     * @throws InsufficientRequestDataException if the given {@link TransferRequest} cannot be completed.
      */
-    TransferRequest completeNewTransferRequestWithError(TransferRequest transferRequest, HttpStatus httpStatus, String infoMessage) throws MoneyTransferException;
+    TransferRequest completeFailedTransferRequest(TransferRequest transferRequest, HttpStatus httpStatus, String infoMessage) throws InsufficientRequestDataException;
 
     /**
      * Completes a {@link TransferRequest} with success.
      *
-     * @param transferRequest
-     * @param transfer
-     * @return
-     * @throws MoneyTransferException
+     * @param transferRequest The transfer request to complete.
+     * @param transfer        The associated {@link Transfer} object.
+     * @return The completed {@link TransferRequest}.
+     * @throws InsufficientRequestDataException if the given {@link TransferRequest} cannot be completed.
      */
-    TransferRequest completeNewTransferRequestWithSuccess(TransferRequest transferRequest, Transfer transfer) throws MoneyTransferException;
+    TransferRequest completeSuccessfulTransferRequest(TransferRequest transferRequest, Transfer transfer) throws InsufficientRequestDataException;
 
 }

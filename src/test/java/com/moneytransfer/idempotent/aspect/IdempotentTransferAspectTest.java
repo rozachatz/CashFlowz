@@ -6,10 +6,10 @@ import com.moneytransfer.entity.Transfer;
 import com.moneytransfer.entity.TransferRequest;
 import com.moneytransfer.enums.Currency;
 import com.moneytransfer.enums.TransferRequestStatus;
-import com.moneytransfer.enums.TransferStatus;
 import com.moneytransfer.exceptions.MoneyTransferException;
 import com.moneytransfer.exceptions.RequestConflictException;
-import com.moneytransfer.idempotent.event.NewTransferRequestEvent;
+import com.moneytransfer.exceptions.ResourceNotFoundException;
+import com.moneytransfer.service.TransferRequestService;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,7 +18,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.math.BigDecimal;
@@ -33,9 +32,11 @@ class IdempotentTransferAspectTest {
     @Mock
     private PlatformTransactionManager transactionManager;
     @Mock
-    private ApplicationEventPublisher applicationEventPublisher;
-    @Mock
     private ProceedingJoinPoint proceedingJoinPoint;
+
+    @Mock
+    TransferRequestService requestService;
+
     @InjectMocks
     private IdempotentTransferAspect idempotentTransferAspect;
 
@@ -50,15 +51,11 @@ class IdempotentTransferAspectTest {
 
 
     @BeforeEach
-    public void setup() {
+    public void setup() throws ResourceNotFoundException {
         doReturn(null).when(transactionManager).getTransaction(any());
         doNothing().when(transactionManager).commit(any());
         TransferRequest transferRequest = new TransferRequest(newTransferDto.transferRequestId(), newTransferDto.amount(), newTransferDto.sourceAccountId(), newTransferDto.targetAccountId(), TransferRequestStatus.IN_PROGRESS, null, null, null);
-        doAnswer(invocation -> {
-            NewTransferRequestEvent event = invocation.getArgument(0);
-            event.future().complete(transferRequest);
-            return null;
-        }).when(applicationEventPublisher).publishEvent(any(NewTransferRequestEvent.class));
+        when(requestService.getTransferRequest(eq(newTransferDto.transferRequestId()))).thenReturn(transferRequest);
     }
 
 
@@ -72,7 +69,7 @@ class IdempotentTransferAspectTest {
 
     @Test
     void test_IdempotentBehavior_HappyPath() throws Throwable {
-        when(proceedingJoinPoint.proceed()).thenReturn(new Transfer(newTransferDto.transferRequestId(), sourceAccount, targetAccount, newTransferDto.amount(), sourceAccount.getCurrency(), TransferStatus.FUNDS_TRANSFERRED));
+        when(proceedingJoinPoint.proceed()).thenReturn(new Transfer(newTransferDto.transferRequestId(), sourceAccount, targetAccount, newTransferDto.amount(), sourceAccount.getCurrency()));
         Transfer transfer1 = idempotentTransferAspect.handleIdempotentTransferRequest(proceedingJoinPoint, null, newTransferDto);
         Transfer transfer2 = idempotentTransferAspect.handleIdempotentTransferRequest(proceedingJoinPoint, null, newTransferDto);
         Assertions.assertEquals(transfer1, transfer2);
@@ -87,4 +84,5 @@ class IdempotentTransferAspectTest {
         Assertions.assertEquals(exception1.getHttpStatus(), exception2.getHttpStatus());
         Assertions.assertEquals(exception1.getMessage(), exception2.getMessage());
     }
+
 }

@@ -5,18 +5,19 @@ import com.moneytransfer.dto.NewTransferDto;
 import com.moneytransfer.entity.Transfer;
 import com.moneytransfer.entity.TransferRequest;
 import com.moneytransfer.enums.TransferRequestStatus;
-import com.moneytransfer.enums.TransferStatus;
 import com.moneytransfer.exceptions.InsufficientRequestDataException;
-import com.moneytransfer.exceptions.InvalidEntityStateException;
 import com.moneytransfer.exceptions.ResourceNotFoundException;
 import com.moneytransfer.repository.TransferRequestRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.SQLException;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -42,33 +43,56 @@ public class TransferRequestServiceImpl implements TransferRequestService {
                 null, null, null));
     }
 
+    @Retryable(retryFor = SQLException.class, maxAttempts = 10, backoff = @Backoff(delay = 1000))
     @CachePut(cacheNames = "moneyTransferRequestsCache", key = "#result.transferRequestId")
-    public TransferRequest completeNewTransferRequestWithSuccess(final TransferRequest transferRequest, final Transfer transfer) throws InsufficientRequestDataException, InvalidEntityStateException {
-        validateCompletionWithSuccess(transferRequest.getTransferRequestId(), transfer);
-        var completedRequest = new TransferRequest(transferRequest.getTransferRequestId(), transferRequest.getAmount(), transferRequest.getSourceAccountId(), transferRequest.getTargetAccountId(), com.moneytransfer.enums.TransferRequestStatus.COMPLETED, HttpStatus.CREATED, HttpStatus.CREATED.getReasonPhrase(), transfer);
-        var newCompletedRequestDto = new CompletedTransferRequestDto(completedRequest.getTransferRequestId(), completedRequest.getTransfer(), HttpStatus.CREATED, HttpStatus.CREATED.getReasonPhrase());
-        transferRequestRepository.completeRequest(newCompletedRequestDto);
-        return completedRequest;
-    }
-
-    @CachePut(cacheNames = "moneyTransferRequestsCache", key = "#result.transferRequestId")
-    public TransferRequest completeNewTransferRequestWithError(TransferRequest transferRequest, HttpStatus httpStatus, String infoMessage) throws InsufficientRequestDataException {
+    public TransferRequest completeFailedTransferRequest(TransferRequest transferRequest, HttpStatus httpStatus, String infoMessage) throws InsufficientRequestDataException {
         validateCompletionWithError(transferRequest.getTransferRequestId(), httpStatus, infoMessage);
-        var completedRequest = new TransferRequest(transferRequest.getTransferRequestId(), transferRequest.getAmount(), transferRequest.getSourceAccountId(), transferRequest.getTargetAccountId(), TransferRequestStatus.COMPLETED, httpStatus, infoMessage, null);
-        var newCompletedRequestDto = new CompletedTransferRequestDto(transferRequest.getTransferRequestId(), transferRequest.getTransfer(), httpStatus, infoMessage);
-        transferRequestRepository.completeRequest(newCompletedRequestDto);
-        return completedRequest;
+        System.out.println("Success");
+        return completeTransferRequest(new TransferRequest(transferRequest.getTransferRequestId(), transferRequest.getAmount(), transferRequest.getSourceAccountId(), transferRequest.getTargetAccountId(), TransferRequestStatus.COMPLETED, httpStatus, infoMessage, null));
     }
 
-    private void validateCompletionWithSuccess(UUID newTransactionRequestId, Transfer transfer) throws InsufficientRequestDataException, InvalidEntityStateException {
+    @Retryable(retryFor = SQLException.class, maxAttempts = 10, backoff = @Backoff(delay = 1000))
+    @CachePut(cacheNames = "moneyTransferRequestsCache", key = "#result.transferRequestId")
+    public TransferRequest completeSuccessfulTransferRequest(final TransferRequest transferRequest, final Transfer transfer) throws InsufficientRequestDataException {
+        validateCompletionWithSuccess(transferRequest.getTransferRequestId(), transfer);
+        return completeTransferRequest(new TransferRequest(transferRequest.getTransferRequestId(), transferRequest.getAmount(), transferRequest.getSourceAccountId(), transferRequest.getTargetAccountId(), TransferRequestStatus.COMPLETED, HttpStatus.CREATED, HttpStatus.CREATED.getReasonPhrase(), transfer));
+    }
+
+    /**
+     * Validates that the {@link TransferRequest} with the given id can be completed as successful.
+     * A successful {@link TransferRequest} is always associated with a non-empty {@link Transfer}.
+     *
+     * @param newTransactionRequestId The id of the {@link TransferRequest}.
+     * @param transfer                The associated {@link Transfer} object.
+     * @throws InsufficientRequestDataException
+     */
+    private void validateCompletionWithSuccess(UUID newTransactionRequestId, Transfer transfer) throws InsufficientRequestDataException {
         Optional.ofNullable(transfer).orElseThrow(() -> new InsufficientRequestDataException(newTransactionRequestId));
-        if (!transfer.getTransferStatus().equals(TransferStatus.FUNDS_TRANSFERRED)) {
-            throw new InvalidEntityStateException(Transfer.class, transfer.getTransferId());
-        }
     }
 
+    /**
+     * Validates that the {@link TransferRequest} with the given id can be completed as failed.
+     * For a failed {@link TransferRequest}, the associated {@link HttpStatus}
+     * and exception message should be provided.
+     *
+     * @param newTransactionRequestId
+     * @param httpStatus
+     * @param infoMessage
+     * @throws InsufficientRequestDataException
+     */
     private void validateCompletionWithError(UUID newTransactionRequestId, HttpStatus httpStatus, String infoMessage) throws InsufficientRequestDataException {
         if (httpStatus == null || infoMessage == null)
             throw new InsufficientRequestDataException(newTransactionRequestId);
+    }
+
+    /**
+     * Completes the given {@link TransferRequest} by updating the associated entity.
+     *
+     * @param completedRequest The {@link TransferRequest} for completion.
+     * @return
+     */
+    private TransferRequest completeTransferRequest(TransferRequest completedRequest) {
+        transferRequestRepository.completeRequest(new CompletedTransferRequestDto(completedRequest.getTransferRequestId(), completedRequest.getTransfer(), completedRequest.getHttpStatus(), completedRequest.getInfoMessage()));
+        return completedRequest;
     }
 }

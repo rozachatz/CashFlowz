@@ -8,7 +8,6 @@ import com.moneytransfer.entity.Account;
 import com.moneytransfer.entity.Transfer;
 import com.moneytransfer.enums.Currency;
 import com.moneytransfer.enums.LockControlMode;
-import com.moneytransfer.enums.TransferStatus;
 import com.moneytransfer.exceptions.InsufficientBalanceException;
 import com.moneytransfer.exceptions.MoneyTransferException;
 import com.moneytransfer.exceptions.SameAccountException;
@@ -161,7 +160,7 @@ class MoneyTransferServiceImpl implements MoneyTransferService {
         var targetAccount = getAccountsForNewTransferDto.getTargetAccount();
         transferAndExchange(sourceAccount, targetAccount, amount);
         var currency = sourceAccount.getCurrency();
-        return transferRepository.save(new Transfer(Generators.timeBasedEpochGenerator().generate(), sourceAccount, targetAccount, amount, currency, TransferStatus.FUNDS_TRANSFERRED));
+        return transferRepository.save(new Transfer(Generators.timeBasedEpochGenerator().generate(), sourceAccount, targetAccount, amount, currency));
     }
 
     private void transferAndExchange(Account sourceAccount, Account targetAccount, final BigDecimal amount) throws MoneyTransferException {

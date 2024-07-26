@@ -4,7 +4,6 @@ import com.moneytransfer.dto.PageResponseDto;
 import com.moneytransfer.entity.Account;
 import com.moneytransfer.entity.Transfer;
 import com.moneytransfer.enums.Currency;
-import com.moneytransfer.enums.TransferStatus;
 import com.moneytransfer.exceptions.ResourceNotFoundException;
 import com.moneytransfer.repository.TransferRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,8 +37,8 @@ public class GetTransferServiceTest {
     public void before() {
         sourceAccount = new Account(0, UUID.randomUUID(), "test", BigDecimal.ZERO, Currency.EUR, LocalDateTime.now());
         targetAccount = new Account(0, UUID.randomUUID(), "test", BigDecimal.ZERO, Currency.EUR, LocalDateTime.now());
-        Transfer transfer1 = new Transfer(UUID.randomUUID(), sourceAccount, targetAccount, BigDecimal.ZERO, sourceAccount.getCurrency(), TransferStatus.FUNDS_TRANSFERRED);
-        Transfer transfer2 = new Transfer(UUID.randomUUID(), sourceAccount, targetAccount, BigDecimal.ONE, sourceAccount.getCurrency(), TransferStatus.FUNDS_TRANSFERRED);
+        Transfer transfer1 = new Transfer(UUID.randomUUID(), sourceAccount, targetAccount, BigDecimal.ZERO, sourceAccount.getCurrency());
+        Transfer transfer2 = new Transfer(UUID.randomUUID(), sourceAccount, targetAccount, BigDecimal.ONE, sourceAccount.getCurrency());
         transfers = List.of(transfer1, transfer2);
     }
 

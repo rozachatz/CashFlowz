@@ -24,7 +24,7 @@ public interface MoneyTransferService {
      *
      * @param newTransferDto The data representing the transfer request.
      * @return The {@link Transfer} object representing the transfer.
-     * @throws MoneyTransferException If an error occurs during the money transfer operation.
+     * @throws MoneyTransferException If a business error occurs during the money transfer operation.
      */
     Transfer transferSerializable(NewTransferDto newTransferDto) throws MoneyTransferException;
 }

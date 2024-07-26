@@ -35,6 +35,7 @@ public class TransferRequest implements Serializable {
     @JoinColumn(name = "transfer_id", referencedColumnName = "transferId")
     private Transfer transfer;
 
+
     public NewTransferDto toNewTransferDto() {
         return new NewTransferDto(transferRequestId, sourceAccountId, targetAccountId, amount);
     }
