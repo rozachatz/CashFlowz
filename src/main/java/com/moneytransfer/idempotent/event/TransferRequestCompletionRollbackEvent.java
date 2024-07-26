@@ -1,11 +1,14 @@
 package com.moneytransfer.idempotent.event;
 
 import com.moneytransfer.entity.Transfer;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-@AllArgsConstructor
 @Getter
-public class TransferRequestCompletionRollbackEvent {
-    Transfer transfer;
+public class TransferRequestCompletionRollbackEvent extends IdempotentTransferRequestEvent {
+    private final Transfer transfer;
+
+    public TransferRequestCompletionRollbackEvent(Object source, Transfer transfer) {
+        super(source);
+        this.transfer = transfer;
+    }
 }

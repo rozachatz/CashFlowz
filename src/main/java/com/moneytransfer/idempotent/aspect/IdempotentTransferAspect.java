@@ -8,14 +8,15 @@ import com.moneytransfer.exceptions.MoneyTransferException;
 import com.moneytransfer.exceptions.RequestConflictException;
 import com.moneytransfer.idempotent.annotation.IdempotentTransferRequest;
 import com.moneytransfer.idempotent.event.NewTransferRequestEvent;
-import com.moneytransfer.idempotent.event.TransferRequestCompletionBusinessErrorEvent;
+import com.moneytransfer.idempotent.event.TransferRequestCompletedWithErrorEvent;
 import com.moneytransfer.idempotent.event.TransferRequestCompletionRollbackEvent;
-import com.moneytransfer.idempotent.event.TransferRequestCompletionSuccessEvent;
+import com.moneytransfer.idempotent.event.TransferRequestCompletedWithSuccessEvent;
+import com.moneytransfer.idempotent.eventpublisher.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
-import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.ApplicationEvent;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -36,7 +37,7 @@ import java.util.concurrent.ExecutionException;
 @RequiredArgsConstructor
 public class IdempotentTransferAspect {
     private final PlatformTransactionManager transactionManager;
-    private final ApplicationEventPublisher applicationEventPublisher;
+    private final EventPublisher<ApplicationEvent> eventPublisher;
     private final ThreadLocal<TransactionStatus> currentTransactionStatus = new ThreadLocal<>();
 
     /**
@@ -91,7 +92,7 @@ public class IdempotentTransferAspect {
 
     private TransferRequest getTransferRequest(NewTransferDto newTransferDto) throws InterruptedException, ExecutionException {
         CompletableFuture<TransferRequest> future = new CompletableFuture<>();
-        applicationEventPublisher.publishEvent(new NewTransferRequestEvent(newTransferDto, future));
+        eventPublisher.publishEvent(new NewTransferRequestEvent(this, newTransferDto, future));
         return future.get();
     }
 
@@ -138,11 +139,11 @@ public class IdempotentTransferAspect {
         try {
             transfer = executeTransfer(transferRequest, proceedingJoinPoint);
             createNewTransaction(TransactionDefinition.ISOLATION_DEFAULT);
-            applicationEventPublisher.publishEvent(new TransferRequestCompletionSuccessEvent(transferRequest, transfer));
+            eventPublisher.publishEvent(new TransferRequestCompletedWithSuccessEvent(this, transferRequest, transfer));
             return transfer;
         } catch (RuntimeException e) {
             if (transfer != null) {
-                applicationEventPublisher.publishEvent(new TransferRequestCompletionRollbackEvent(transfer));
+                eventPublisher.publishEvent(new TransferRequestCompletionRollbackEvent(this, transfer));
             }
             throw e;
         }
@@ -163,7 +164,7 @@ public class IdempotentTransferAspect {
             return transfer;
         } catch (Throwable e) {
             if (e instanceof MoneyTransferException mte) {
-                applicationEventPublisher.publishEvent(new TransferRequestCompletionBusinessErrorEvent(transferRequest, mte));
+                eventPublisher.publishEvent(new TransferRequestCompletedWithErrorEvent(this, transferRequest, mte));
                 throw mte;
             }
             throw new RuntimeException(e);

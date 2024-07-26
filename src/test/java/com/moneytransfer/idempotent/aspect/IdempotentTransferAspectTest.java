@@ -10,6 +10,7 @@ import com.moneytransfer.enums.TransferStatus;
 import com.moneytransfer.exceptions.MoneyTransferException;
 import com.moneytransfer.exceptions.RequestConflictException;
 import com.moneytransfer.idempotent.event.NewTransferRequestEvent;
+import com.moneytransfer.idempotent.eventpublisher.EventPublisher;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,7 +19,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.ApplicationEvent;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.math.BigDecimal;
@@ -33,7 +34,7 @@ class IdempotentTransferAspectTest {
     @Mock
     private PlatformTransactionManager transactionManager;
     @Mock
-    private ApplicationEventPublisher applicationEventPublisher;
+    private EventPublisher<ApplicationEvent> applicationEventPublisher;
     @Mock
     private ProceedingJoinPoint proceedingJoinPoint;
     @InjectMocks
@@ -56,7 +57,7 @@ class IdempotentTransferAspectTest {
         TransferRequest transferRequest = new TransferRequest(newTransferDto.transferRequestId(), newTransferDto.amount(), newTransferDto.sourceAccountId(), newTransferDto.targetAccountId(), TransferRequestStatus.IN_PROGRESS, null, null, null);
         doAnswer(invocation -> {
             NewTransferRequestEvent event = invocation.getArgument(0);
-            event.future().complete(transferRequest);
+            event.getFuture().complete(transferRequest);
             return null;
         }).when(applicationEventPublisher).publishEvent(any(NewTransferRequestEvent.class));
     }
