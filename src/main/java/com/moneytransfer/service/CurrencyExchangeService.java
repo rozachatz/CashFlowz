@@ -12,11 +12,11 @@ public interface CurrencyExchangeService {
     /**
      * Performs the currency exchange operation from source to target {@link Currency}.
      *
-     * @param amount
-     * @param sourceCurrency
-     * @param targetCurrency
-     * @return BigDecimal The exchanged rate.
-     * @throws MoneyTransferException if the exchange rate cannot be fetched.
+     * @param amount         The amount to be exchanged.
+     * @param sourceCurrency The source {@link Currency}.
+     * @param targetCurrency The target {@link Currency}.
+     * @return The amount exchanged in the target currency.
+     * @throws MoneyTransferException If the exchange rate cannot be fetched.
      */
     BigDecimal exchange(BigDecimal amount, Currency sourceCurrency, Currency targetCurrency) throws MoneyTransferException;
 }

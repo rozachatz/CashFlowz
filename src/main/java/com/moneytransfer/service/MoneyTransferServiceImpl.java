@@ -37,8 +37,8 @@ class MoneyTransferServiceImpl implements MoneyTransferService {
      *
      * @param newTransferDto  The dto representing the transfer request.
      * @param lockControlMode The lock control mode to use for the transfer operation.
-     * @return
-     * @throws MoneyTransferException
+     * @return a new {@link Transfer}
+     * @throws MoneyTransferException for a business error.
      */
     @Transactional(propagation = REQUIRES_NEW)
     public Transfer transferWithLocking(final NewTransferDto newTransferDto, final LockControlMode lockControlMode) throws MoneyTransferException {
@@ -53,9 +53,9 @@ class MoneyTransferServiceImpl implements MoneyTransferService {
      * Transfer money with no serializable isolation.
      * For more information see <a href="https://www.baeldung.com/spring-transactional-propagation-isolation#5-serializable-isolation">...</a>.
      *
-     * @param newTransferDto The data representing the transfer request.
-     * @return a Transfer
-     * @throws MoneyTransferException
+     * @param newTransferDto The dto representing the new money transfer.
+     * @return a new {@link Transfer}
+     * @throws MoneyTransferException for a business error.
      */
     @IdempotentTransferRequest
     @Transactional(isolation = Isolation.SERIALIZABLE, propagation = REQUIRES_NEW)
@@ -67,9 +67,9 @@ class MoneyTransferServiceImpl implements MoneyTransferService {
     /**
      * Transfer money with no resource locking.
      *
-     * @param newTransferDto
-     * @return a new Transfer
-     * @throws MoneyTransferException
+     * @param newTransferDto The dto representing the new money transfer
+     * @return a new {@link Transfer}
+     * @throws MoneyTransferException for a business error.
      */
     private Transfer transfer(final NewTransferDto newTransferDto) throws MoneyTransferException {
         var transferAccountsDto = getAccountService.getAccountPairByIds(newTransferDto.sourceAccountId(), newTransferDto.targetAccountId());
@@ -80,9 +80,9 @@ class MoneyTransferServiceImpl implements MoneyTransferService {
      * Transfer money with pessimistic locking guarantees that resources will be locked with pessimistic locking.
      * For more information see <a href="https://www.baeldung.com/jpa-optimistic-locking">...</a>.
      *
-     * @param newTransferDto
-     * @return a new Transfer
-     * @throws MoneyTransferException
+     * @param newTransferDto The dto representing the new money transfer
+     * @return a new {@link Transfer}
+     * @throws MoneyTransferException for a business error
      */
     private Transfer transferOptimistic(final NewTransferDto newTransferDto) throws MoneyTransferException {
         var transferAccountsDto = getAccountService.getAccountPairByIdsOptimistic(newTransferDto.sourceAccountId(), newTransferDto.targetAccountId());
@@ -93,9 +93,9 @@ class MoneyTransferServiceImpl implements MoneyTransferService {
      * Transfer money with pessimistic locking.
      * For more information see <a href="https://www.baeldung.com/jpa-pessimistic-locking">...</a>.
      *
-     * @param newTransferDto
-     * @return a new Transfer
-     * @throws MoneyTransferException
+     * @param newTransferDto The dto representing the new money transfer.
+     * @return a new {@link Transfer}
+     * @throws MoneyTransferException for a business error
      */
     private Transfer transferPessimistic(final NewTransferDto newTransferDto) throws MoneyTransferException {
         var transferAccountsDto = getAccountService.getAccountPairByIdsPessimistic(newTransferDto.sourceAccountId(), newTransferDto.targetAccountId());
@@ -105,10 +105,10 @@ class MoneyTransferServiceImpl implements MoneyTransferService {
     /**
      * Validate and persist the resulting Transfer.
      *
-     * @param getAccountsForNewTransferDto
-     * @param newTransferDto
-     * @return
-     * @throws MoneyTransferException
+     * @param getAccountsForNewTransferDto The projection interface containing the source and target {@link Account} entities.
+     * @param newTransferDto               The dto representing the new money transfer.
+     * @return a new {@link Transfer}
+     * @throws MoneyTransferException for a business error
      */
     private Transfer performTransfer(final GetAccountsForNewTransferDto getAccountsForNewTransferDto, final NewTransferDto newTransferDto) throws MoneyTransferException {
         validateTransfer(getAccountsForNewTransferDto, newTransferDto.amount());
@@ -135,7 +135,7 @@ class MoneyTransferServiceImpl implements MoneyTransferService {
      *
      * @param accounts The source and target {@link Account} content.
      * @param amount   The amount to be transferred.
-     * @throws MoneyTransferException If the transfer fails to meet the acceptance criteria.
+     * @throws MoneyTransferException for a business error
      */
     private void validateTransfer(final GetAccountsForNewTransferDto accounts, final BigDecimal amount) throws MoneyTransferException {
         validateAccountsNotSame(accounts);

@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -30,8 +29,12 @@ public class CurrencyExchangeServiceImpl implements CurrencyExchangeService {
         return amount.multiply(BigDecimal.valueOf(targetRate));
     }
 
-    private Map<String, Double> validateResponseAndGetRates(ResponseEntity<ExchangeRatesResponse> rates) throws MoneyTransferException {
-        return Optional.ofNullable(Objects.requireNonNull(rates.getBody()).data())
+    private Map<String, Double> validateResponseAndGetRates(ResponseEntity<ExchangeRatesResponse> response) throws MoneyTransferException {
+        ExchangeRatesResponse exchangeRatesResponse = Optional.ofNullable(response)
+                .map(ResponseEntity::getBody)
                 .orElseThrow(() -> new MoneyTransferException("Cannot fetch exchange currency data from third party API!"));
+
+        return Optional.ofNullable(exchangeRatesResponse.data())
+                .orElseThrow(() -> new MoneyTransferException("Exchange currency data is missing from the response from third party API!"));
     }
 }

@@ -4,6 +4,7 @@ import com.moneytransfer.dto.NewTransferDto;
 import com.moneytransfer.entity.Account;
 import com.moneytransfer.entity.Transfer;
 import com.moneytransfer.enums.Currency;
+import com.moneytransfer.exceptions.InsufficientRequestDataException;
 import com.moneytransfer.exceptions.MoneyTransferException;
 import com.moneytransfer.exceptions.ResourceNotFoundException;
 import com.moneytransfer.repository.AccountRepository;
@@ -21,8 +22,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @Testcontainers
@@ -67,7 +67,7 @@ public class TransferRequestServiceTest {
         var transferRequestId = UUID.randomUUID();
         var newTransferDto = new NewTransferDto(transferRequestId, UUID.randomUUID(), UUID.randomUUID(), BigDecimal.ZERO);
         var transactionRequest = transferRequestService.createTransferRequest(newTransferDto);
-        transferRequestService.completeFailedTransferRequest(transactionRequest, HttpStatus.INTERNAL_SERVER_ERROR, "test");
+        assertNotNull(transferRequestService.completeFailedTransferRequest(transactionRequest, HttpStatus.INTERNAL_SERVER_ERROR, "test"));
     }
 
     @Test
@@ -75,6 +75,24 @@ public class TransferRequestServiceTest {
         var transferRequestId = UUID.randomUUID();
         var newTransferDto = new NewTransferDto(transferRequestId, UUID.randomUUID(), UUID.randomUUID(), BigDecimal.ZERO);
         var transactionRequest = transferRequestService.createTransferRequest(newTransferDto);
-        transferRequestService.completeSuccessfulTransferRequest(transactionRequest, transfer);
+        assertNotNull(transferRequestService.completeSuccessfulTransferRequest(transactionRequest, transfer));
     }
+
+    @Test
+    public void test_CompleteSuccessfulRequest_InvalidData() {
+        var transferRequestId = UUID.randomUUID();
+        var newTransferDto = new NewTransferDto(transferRequestId, UUID.randomUUID(), UUID.randomUUID(), BigDecimal.ZERO);
+        var transactionRequest = transferRequestService.createTransferRequest(newTransferDto);
+        assertThrows(InsufficientRequestDataException.class, () -> transferRequestService.completeSuccessfulTransferRequest(transactionRequest, null));
+    }
+
+    @Test
+    public void test_CompleteFailedRequest_InvalidData() {
+        var transferRequestId = UUID.randomUUID();
+        var newTransferDto = new NewTransferDto(transferRequestId, UUID.randomUUID(), UUID.randomUUID(), BigDecimal.ZERO);
+        var transactionRequest = transferRequestService.createTransferRequest(newTransferDto);
+        assertThrows(InsufficientRequestDataException.class, () -> transferRequestService.completeFailedTransferRequest(transactionRequest, null, "test"));
+    }
+
+
 }

@@ -17,7 +17,7 @@ import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.SQLException;
+import java.sql.SQLTransientConnectionException;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -43,15 +43,14 @@ public class TransferRequestServiceImpl implements TransferRequestService {
                 null, null, null));
     }
 
-    @Retryable(retryFor = SQLException.class, maxAttempts = 10, backoff = @Backoff(delay = 1000))
+    @Retryable(retryFor = SQLTransientConnectionException.class, backoff = @Backoff(delay = 3000))
     @CachePut(cacheNames = "moneyTransferRequestsCache", key = "#result.transferRequestId")
     public TransferRequest completeFailedTransferRequest(TransferRequest transferRequest, HttpStatus httpStatus, String infoMessage) throws InsufficientRequestDataException {
         validateCompletionWithError(transferRequest.getTransferRequestId(), httpStatus, infoMessage);
-        System.out.println("Success");
         return completeTransferRequest(new TransferRequest(transferRequest.getTransferRequestId(), transferRequest.getAmount(), transferRequest.getSourceAccountId(), transferRequest.getTargetAccountId(), TransferRequestStatus.COMPLETED, httpStatus, infoMessage, null));
     }
 
-    @Retryable(retryFor = SQLException.class, maxAttempts = 10, backoff = @Backoff(delay = 1000))
+    @Retryable(retryFor = SQLTransientConnectionException.class, backoff = @Backoff(delay = 3000))
     @CachePut(cacheNames = "moneyTransferRequestsCache", key = "#result.transferRequestId")
     public TransferRequest completeSuccessfulTransferRequest(final TransferRequest transferRequest, final Transfer transfer) throws InsufficientRequestDataException {
         validateCompletionWithSuccess(transferRequest.getTransferRequestId(), transfer);

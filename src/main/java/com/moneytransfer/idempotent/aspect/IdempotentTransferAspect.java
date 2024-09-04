@@ -36,12 +36,19 @@ public class IdempotentTransferAspect {
 
     /**
      * Handles an idempotent request for money transfer, encapsulated by {@link NewTransferDto}.
+     * <p>
      * For a given money transfer request, this method will always return:
      * The same {@link Transfer} object for a successful money transfer,
      * or a {@link MoneyTransferException} with the same http status and message for a failed money transfer.
+     * </p>
+     *
+     * <p>
+     * The transactional boundaries of the aspect (inherited by the target method) are ignored
+     * and a new transaction is programmatically started using {@link PlatformTransactionManager}.
+     * </p>
      *
      * @param proceedingJoinPoint       Exposes the money transfer method.
-     * @param idempotentTransferRequest The annotation for the aspect.
+     * @param idempotentTransferRequest The annotation for the {@link IdempotentTransferAspect}.
      * @param newTransferDto            The dto representing the new money transfer request.
      * @return The associated {@link Transfer} object.
      * @throws Throwable If a (business) error occurs.
@@ -62,9 +69,17 @@ public class IdempotentTransferAspect {
     }
 
     /**
-     * This method creates or retrieves a {@link TransferRequest} and then processes it, depending on its {@link TransferRequestStatus}.
-     * For status {@link TransferRequestStatus#IN_PROGRESS}, the money transfer method is executed.
-     * For status {@link TransferRequestStatus#COMPLETED}, an existing {@link Transfer} is retrieved, or a {@link MoneyTransferException} is thrown.
+     * This method creates or retrieves a {@link TransferRequest} and then processes it,
+     * depending on its {@link TransferRequestStatus}.
+     * <p>
+     * For status {@link TransferRequestStatus#IN_PROGRESS}, the first transaction is committed
+     * and then the money transfer method and transfer request completion are executed,
+     * with their own transactional boundaries.
+     * </p>
+     * <p>
+     * For status {@link TransferRequestStatus#COMPLETED}, the associated {@link Transfer} is retrieved or
+     * {@link RequestConflictException} is thrown.
+     * </p>
      *
      * @param newTransferDto      The dto representing the new money transfer request.
      * @param proceedingJoinPoint Exposes the money transfer method.
@@ -118,7 +133,8 @@ public class IdempotentTransferAspect {
     /**
      * Gets a {@link Transfer} associated with a {@link TransferRequest},
      * or throws a {@link RequestConflictException} for an empty {@link Transfer} field.
-     * A {@link TransferRequest} associated with an empty {@link Transfer} indicates a failed money transfer, while a non-empty value a successful one.
+     * A {@link TransferRequest} associated with an empty {@link Transfer} indicates a failed money transfer,
+     * while a non-empty value a successful money transfer.
      *
      * @param transferRequest The retrieved {@link TransferRequest}.
      * @return A {@link Transfer} object.
@@ -136,7 +152,7 @@ public class IdempotentTransferAspect {
      * <p>
      * The transactional boundaries of the money transfer operation and request completion are defined using programmatic transaction management.
      * The money transfer operation requires a new transaction with {@link TransactionDefinition#ISOLATION_SERIALIZABLE} isolation,
-     * while the completion of the money transfer request requires a new transaction with {@link TransactionDefinition#ISOLATION_DEFAULT}.
+     * while the completion of a successful/failed money transfer request requires a new transaction with {@link TransactionDefinition#ISOLATION_DEFAULT}.
      * </p>
      *
      * @param transferRequest     The associated {@link TransferRequest}.
@@ -145,22 +161,24 @@ public class IdempotentTransferAspect {
      * @throws Throwable for a (business) error.
      */
     private Transfer processTransferRequest(final TransferRequest transferRequest, final ProceedingJoinPoint proceedingJoinPoint) throws Throwable {
+        Transfer transfer;
         try {
-            Transfer transfer = transferMoney(proceedingJoinPoint);
-            createNewTransaction(TransactionDefinition.ISOLATION_DEFAULT);
-            transferRequestService.completeSuccessfulTransferRequest(transferRequest, transfer);
-            return transfer;
+            transfer = transferMoney(proceedingJoinPoint);
         } catch (MoneyTransferException mte) {
             createNewTransaction(TransactionDefinition.ISOLATION_DEFAULT);
             transferRequestService.completeFailedTransferRequest(transferRequest, mte.getHttpStatus(), mte.getMessage());
             throw mte;
         }
-
+        createNewTransaction(TransactionDefinition.ISOLATION_DEFAULT);
+        transferRequestService.completeSuccessfulTransferRequest(transferRequest, transfer);
+        return transfer;
     }
 
     /**
      * Executes the target transfer method and defines its transactional boundaries.
-     * Returns the successful money transfer, represented by a {@link Transfer} object.
+     * The money transfer method always has a {@link TransactionDefinition#ISOLATION_SERIALIZABLE}
+     * and a {@link TransactionDefinition#PROPAGATION_REQUIRES_NEW}
+     * isolation and propagation level, respectively.
      *
      * @param proceedingJoinPoint Exposes the money transfer method.
      * @return a new {@link Transfer} object
@@ -174,8 +192,12 @@ public class IdempotentTransferAspect {
     }
 
     /**
-     * Programmatic transaction creation for the aspect and the money transfer method.
-     * The new transaction will always have a {@link TransactionDefinition#PROPAGATION_REQUIRES_NEW} propagation.
+     * Programmatic transaction definition and creation.
+     * <p>
+     * The new transaction will always have a {@link TransactionDefinition#PROPAGATION_REQUIRES_NEW} propagation level.
+     * The {@link TransactionStatus} is also saved as a {@link ThreadLocal<TransactionStatus>} entry,
+     * to keep track of the current transaction for each thread.
+     * </p>
      *
      * @param isolation The isolation level of the new transaction.
      */
