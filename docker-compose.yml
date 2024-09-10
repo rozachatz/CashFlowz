@@ -1,4 +1,4 @@
-version: '3.1'
+version: '3.3'
 
 services:
 
@@ -6,17 +6,32 @@ services:
     image: postgres:10.5
     restart: always
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=mydb
-
+      - POSTGRES_USER=$DB_USER
+      - POSTGRES_PASSWORD=$DB_PASS
+      - POSTGRES_DB=$DB_NAME
     ports:
       - '5432:5432'
-    volumes:
-      - ./sql/db_init.sql:/docker-entrypoint-initdb.d/db_init.sql
-      - ./postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - network-simple
+    command: [ "postgres", "-c", "log_statement=all", "-c", "log_destination=stderr" ]
 
-
+  redis:
+    image: redis:7-alpine
+    hostname: redis
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    networks:
+      - network-simple
   app:
     build:
       context: .
@@ -25,5 +40,19 @@ services:
     ports:
       - '8080:8080'
       - '5005:5005'
+    networks:
+      - network-simple
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: $DB_URL
+      SPRING_DATASOURCE_USERNAME: $DB_USER
+      SPRING_DATASOURCE_PASSWORD: $DB_PASS
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+networks:
+  network-simple:
+

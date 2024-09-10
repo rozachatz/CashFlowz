@@ -6,8 +6,17 @@ import com.moneytransfer.exceptions.MoneyTransferException;
 import java.math.BigDecimal;
 
 /**
- * Service for exchanging source currency in a transfer operation
+ * Service for exchanging source currency in a transfer operation.
  */
 public interface CurrencyExchangeService {
-    BigDecimal exchangeCurrency(BigDecimal amount, Currency targetCurrency, Currency sourceCurrency) throws MoneyTransferException;
+    /**
+     * Performs the currency exchange operation from source to target {@link Currency}.
+     *
+     * @param amount         The amount to be exchanged.
+     * @param sourceCurrency The source {@link Currency}.
+     * @param targetCurrency The target {@link Currency}.
+     * @return The amount exchanged in the target currency.
+     * @throws MoneyTransferException If the exchange rate cannot be fetched.
+     */
+    BigDecimal exchange(BigDecimal amount, Currency sourceCurrency, Currency targetCurrency) throws MoneyTransferException;
 }

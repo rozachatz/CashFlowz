@@ -1,39 +1,40 @@
 package com.moneytransfer.service;
 
+import com.moneytransfer.dao.CurrencyExchangeDao;
 import com.moneytransfer.dto.ExchangeRatesResponse;
 import com.moneytransfer.enums.Currency;
 import com.moneytransfer.exceptions.MoneyTransferException;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpMethod;
+import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Implementation of {@link CurrencyExchangeService}
  */
+@RequiredArgsConstructor
 @Service
 public class CurrencyExchangeServiceImpl implements CurrencyExchangeService {
+    private final CurrencyExchangeDao currencyExchangeDao;
 
-    @Value("${freecurrencyapi.apiKey}")
-    private String apiKey;
-
-    @Value("${freecurrencyapi.apiUrl}")
-    private String apiUrl;
-
-    public BigDecimal exchangeCurrency(BigDecimal amount, final Currency sourceCurrency, final Currency targetCurrency) throws MoneyTransferException {
-        var subUrl = apiUrl.concat(apiKey);
-        var url = String.format("%1$s&currencies=%2$s&base_currency=%3$s", subUrl, targetCurrency.name(), sourceCurrency.name());
-        ResponseEntity<ExchangeRatesResponse> responseEntity = new RestTemplate().exchange(url, HttpMethod.GET, null, ExchangeRatesResponse.class);
-        if (responseEntity.getStatusCode().is2xxSuccessful()) {
-            ExchangeRatesResponse response = responseEntity.getBody();
-            if (response != null && response.getData() != null) {
-                return amount.multiply(BigDecimal.valueOf(response.getData().get(targetCurrency.name())));
-            }
-        }
-        throw new MoneyTransferException("Error occurred while exchanging currency!");
+    @Cacheable(cacheNames = "exchangeRatesCache", key = "#sourceCurrency.name()+#targetCurrency.name()")
+    public BigDecimal exchange(BigDecimal amount, final Currency sourceCurrency, final Currency targetCurrency) throws MoneyTransferException {
+        var response = currencyExchangeDao.get(sourceCurrency, targetCurrency);
+        var rates = validateResponseAndGetRates(response);
+        var targetRate = rates.get(targetCurrency.name());
+        return amount.multiply(BigDecimal.valueOf(targetRate));
     }
 
+    private Map<String, Double> validateResponseAndGetRates(ResponseEntity<ExchangeRatesResponse> response) throws MoneyTransferException {
+        ExchangeRatesResponse exchangeRatesResponse = Optional.ofNullable(response)
+                .map(ResponseEntity::getBody)
+                .orElseThrow(() -> new MoneyTransferException("Cannot fetch exchange currency data from third party API!"));
+
+        return Optional.ofNullable(exchangeRatesResponse.data())
+                .orElseThrow(() -> new MoneyTransferException("Exchange currency data is missing from the response from third party API!"));
+    }
 }

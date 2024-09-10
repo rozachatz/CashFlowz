@@ -2,9 +2,11 @@ package com.moneytransfer.exceptions;
 
 import org.springframework.http.HttpStatus;
 
+import java.util.UUID;
+
 public class SameAccountException extends MoneyTransferException {
-    public SameAccountException(String message) {
-        super(message);
+    public SameAccountException(UUID accountId) {
+        super(String.format("Transfers in the same Account [%s] is not allowed.", accountId));
     }
 
     @Override

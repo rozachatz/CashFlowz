@@ -1,14 +1,13 @@
 package com.moneytransfer.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+import com.moneytransfer.exceptions.MoneyTransferException;
 
 /**
- * Dto for Exceptions
+ * Dto for exception handling.
+ *
+ * @param reasonPhrase     The reasonPhrase of {@link org.springframework.http.HttpStatus}.
+ * @param exceptionMessage The exception message.
+ * @see com.moneytransfer.exceptions.GlobalAPIExceptionHandler#handleMoneyExceptions(MoneyTransferException)
  */
-@Getter
-@AllArgsConstructor
-public class ErrorResponseDto {
-    private int HttpStatusValue;
-    private String message;
+public record ErrorResponseDto(String reasonPhrase, String exceptionMessage) {
 }

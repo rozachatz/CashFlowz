@@ -1,13 +1,15 @@
 package com.moneytransfer.dto;
 
-import lombok.Getter;
-import lombok.Setter;
+import com.moneytransfer.enums.Currency;
 
-import java.math.BigDecimal;
+import java.io.Serializable;
 import java.util.Map;
 
-@Getter
-@Setter
-public class ExchangeRatesResponse {
-    private Map<String, Double> data;
+/**
+ * Dto for response from the {@link com.moneytransfer.dao.CurrencyExchangeDao}.
+ *
+ * @param data The data returned by the DAO.
+ * @see com.moneytransfer.dao.CurrencyExchangeDao#get(Currency, Currency)
+ */
+public record ExchangeRatesResponse(Map<String, Double> data) implements Serializable {
 }

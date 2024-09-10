@@ -1,106 +1,131 @@
-# MoneyTransfer API 💸 💸 
+# CashFlowz 💸 💸
 
 ## Table of Contents
+
 - [Introduction](#introduction)
-- [Documentation](#documentation)
-- [Data Model](#data-model)
+- [API Documentation](#API-Documentation)
 - [Architecture](#architecture)
 - [Testing](#testing)
 - [Docker](#docker)
 
-## Introduction 
-This project includes a SpringBoot application for handling financial transactions 💸 .  
-Update: Currency exchange is now performed to the transferred amount (if necessary) by fetching the latest exchange rates from "https://freecurrencyapi.com/"! 💱
+## Introduction
 
-## Documentation
-Powered by Swagger. Visit "http://localhost:8080/api/swagger-ui/index.html" to explore endpoints and try-out the app! 😊
+CashFlowz is a Java application for seamless and secure financial transfers 💸 .
 
-## Data Model
-### Account
-The Account entity represents a bank account with the following properties:
+## API Documentation
 
-| Field     | Description                    |
-|-----------|--------------------------------|
-| account_id        | Unique identifier of the account |
-| balance           | Decimal number representing the account balance |
-| currency          | Currency of the account (e.g., "GBP") |
-| createdAt         | Date and time when the account was created |
-
-### Transaction
-The Transaction entity represents a financial transaction between two accounts and includes the following properties:
-
-| Field            | Description                          |
-|------------------|--------------------------------------|
-| transaction_id   | Unique identifier of the transaction |
-| source_account_id  | ID of the account sending the funds   |
-| target_account_id  | ID of the account receiving the funds |
-| amount           | Amount being transferred              |
-| currency         | Currency of the transaction           |
-
-### TransactionRequest
-The TransactionRequest entity provides idempotent behavior for POST transfer requests.
-
-| Field                 | Description                                          |
-|-----------------------|------------------------------------------------------|
-| transactionRequest_id | Unique identifier of the TransactionRequest          |
-| transaction_id        | ID of the successful Transaction                     |
-| errorMessage          | Error message                                        |
-| requestStatus         | Status of the TransactionRequest                     |
-| jsonBody              | String representation of the jsonBody of the request |
+Power-up the application (preferably with [Docker](#docker-guidelines)) and
+visit "http://localhost:8080/api/swagger-ui/index.html" to explore endpoints, read API documentation and try-out the
+app! 😊
 
 ## Architecture
-### Controller
-- TransactionController
 
-### Data Transfer Objects (Dtos)
-Container classes, read-only purposes.
+The app follows a three-tier layered architecture, consisting of the Presentation Layer (Controller(s)), Business
+Layer (Services) and Persistent Layer (Repositories/Entities).
 
-### Services
-#### TransactionRequestService
-Business Logic for executing a request for a financial transaction.
+### Presentation Layer
 
-#### TransactionService
-Business logic for performing a financial transactions between two accounts.
+All endpoints and their corresponding swagger documentation are defined in the MoneyTransferAPIController.
 
-#### CurrencyExchangeService
-Business logic for performing currency exchange.
+### Business Layer
 
-### Entities
-- TransactionRequest
-- Transaction
-- Account
+- #### GetTransactionService
 
-### Repositories
-JPA repository for each entity.
+Gets all transfers within the system.
 
-### Exceptions
-- Custom exceptions
-- GlobalAPIExceptionHandler returns the appropriate HTTP status for each custom exception.
-  
+- #### GetAccountService
+
+Gets all accounts within the system.
+
+- #### MoneyTransferService
+
+Performs the money transfer operation.
+
+- #### CurrencyExchangeService
+
+Performs currency exchange by retrieving the latest exchange rates from "https://freecurrencyapi.com/"! 💱
+
+- #### RequestService
+
+Gets, submits and resolves all transfer requests, which are stored in a Redis cache (i.e., requestsCache).
+
+### Persistent Layer
+
+Using JPA repositories for each entity:
+
+#### Account
+
+The Account entity represents a bank account with the following prope
+
+| Field      | Description                                     |      
+|------------|-------------------------------------------------|      
+| account_id | Unique identifier of the account                |      
+| owner_name | Name of the account owner                       |      
+| balance    | Decimal number representing the account balance |     
+| currency   | Currency of the account                         |                   
+| created_at | Date and time of account creation.              |      
+
+#### Transaction
+
+The Transaction entity represents a financial transfer between two
+
+| Field             | Description                           |         
+|-------------------|---------------------------------------|         
+| transaction_id    | Unique identifier of the transfer. |         
+| source_account_id | ID of the account sending the funds   |         
+| target_account_id | ID of the account receiving the funds |        
+| amount            | Amount being transferred              |         
+| currency          | currency of the transfer           |         
+
+#### TransactionRequest
+
+The TransactionRequest entity represents an idempotent transfer reque
+
+| Field             | Description                                  | 
+|-------------------|----------------------------------------------| 
+| request_id        | Unique identifier of the transactionRequest  | 
+| source_account_id | ID of the account sending the funds          | 
+| target_account_id | ID of the account receiving the funds        | 
+| amount            | Amount of funds being transferred            | 
+| transfer       | the associated Transaction                   | 
+| http_status       | http status of the associated post request.  | 
+| info_message      | detailed information for the request outcome | 
+
+_______________________________________
+
+### Aspect Oriented Programming
+
+- ##### IdempotentTransferAspect
+
+Provides the functionality for an idempotent transfer request.
+______________________________
+
+### Logging & Exception Handling
+
+Using @ControllerAdvice for exception handling and logging.
+
 ## Testing
-At the moment, integration tests for services are provided. More to come, as the app progresses! 
-*Note: Integration tests use H2 embedded db.*
+
+At the moment, service integration tests (with H2 test database) are provided.
 
 ### Acceptance Criteria
+
 - AC 1: Happy path
 - AC 2: Insufficient balance
 - AC 3: Transfer in the same account
 - AC 4: Source/target account does not exist
-  
+
 ## Docker
-The app and (Postgres) db are now dockerized! ❤️ Let the magic happen by executing the following commands:
 
-**First-time setup:**
-````bash
-docker compose up db --build
-docker compose up app --build
-````
-Note: allow database setup to complete before starting the app container.
+Build the project and let the magic ✨ happen by executing:
 
-**Subsequent runs:**
 ````bash
-docker compose up
+docker compose up --build
 ````
 
+That's all you need, everything is set up for you :)
 
+You can of course play with whatever database/cache/migration tool you like (I use Postgres, Redis and Flyway) by
+modifying the docker-compose.yml file.
 
+Have fun! 
