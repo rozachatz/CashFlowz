@@ -15,6 +15,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
@@ -43,6 +45,11 @@ public class TransferRequestServiceTest {
         account2 = new Account(0, UUID.randomUUID(), "testUsr", BigDecimal.ZERO, Currency.EUR, LocalDateTime.now());
         transfer = new Transfer(UUID.randomUUID(), account1, account2, BigDecimal.ZERO, account1.getCurrency());
 
+    }
+
+    @DynamicPropertySource
+    static void dynamicProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", () -> "jdbc:tc:postgresql:10.5:///test_database_transfer_service");
     }
 
     @BeforeEach

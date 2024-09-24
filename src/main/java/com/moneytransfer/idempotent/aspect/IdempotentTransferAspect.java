@@ -13,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -29,11 +31,12 @@ import java.util.Optional;
 @Component
 @Aspect
 @RequiredArgsConstructor
+@EmbeddedKafka(bootstrapServersProperty = "spring.kafka.bootstrap-servers", partitions = 1, topics = {"console-notification"})
 public class IdempotentTransferAspect {
     private final PlatformTransactionManager transactionManager;
     private final TransferRequestService transferRequestService;
     private final ThreadLocal<TransactionStatus> currentTransactionStatus = new ThreadLocal<>();
-
+    private final KafkaTemplate<String, String> kafkaTemplate;
     /**
      * Handles an idempotent request for money transfer, encapsulated by {@link NewTransferDto}.
      * <p>
@@ -171,6 +174,8 @@ public class IdempotentTransferAspect {
         }
         createNewTransaction(TransactionDefinition.ISOLATION_DEFAULT);
         transferRequestService.completeSuccessfulTransferRequest(transferRequest, transfer);
+        String message = "Transfer completed!!!";
+        kafkaTemplate.send("console-notification", message);
         return transfer;
     }
 
