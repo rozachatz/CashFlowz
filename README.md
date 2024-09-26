@@ -17,16 +17,15 @@ CashFlowz is a money transfer microservice application written in Java for seaml
 
 Power-up the application (preferably with [Docker](#docker)) and
 visit "http://localhost:8080/api/swagger-ui/index.html" to explore endpoints and  read the API documentation! 😊
+## MoneyTransfer Microservice
+### Architecture
+The moneytransfer REST microservice architecture follows a domain-driven design pattern.
 
-## Architecture
-### MoneyTransfer Microservice
-The moneytransfer microservice architecture follows a domain-driven design pattern.
-
-### Presentation Layer
+#### Presentation Layer
 
 All endpoints and their documentation are defined in MoneyTransferAPIController.
 
-### Application Layer
+#### Application Layer
 Includes all the services and DTOs.
 
 - #### GetTransferService
@@ -52,7 +51,7 @@ Gets, submits and resolves all transfer requests.
 - #### CurrencyExchangeService
 Gets the exchange rates from third party API using CurrencyExchangeDao and performs the currency exchange for a given amount.
 
-### Domain Layer
+#### Domain Layer
 
 #### Account
 
@@ -93,37 +92,37 @@ The TransferRequest entity represents a transfer request:
 | http_status             | http status of a completed TransferRequest             | 
 | info_message            | includes the exception message or a success message    | 
 
-### Notifications Microservice
-The Notifications microservice sends a notification to the customer when a Transfer is successfully completed.
-
-### Kafka
-The money transfer and notifications microservices communicate asynchronously with Kafka.
-
-### Persistence Layer
+#### Persistence Layer
 Includes all (JPA) repositories and Data Access Objects (DAOs).
-_______________________________________
 
-## Aspect Oriented Programming
-
-### IdempotentTransferAspect
-
-An @Around aspect providing the functionality for idempotent transfer requests.
-______________________________
-
-## Logging & Exception Handling
-
+#### Logging & Exception Handling
 Using @ControllerAdvice for exception handling and logging.
 
-## Testing
+#### Aspects
+
+#### IdempotentTransferAspect
+
+An @Around aspect providing the functionality for idempotent transfer requests.
+
+### Testing
 Unit and integration tests with Junit-5 and @TestContainers.
 
-### Acceptance Criteria
+#### Acceptance Criteria
 
 - AC 1: Happy path
 - AC 2: Insufficient balance
 - AC 3: Transfer in the same account
 - AC 4: Source/target account does not exist
+__________________________________________________________________________
+## Notifications Microservice
+The Notifications microservice sends a notification to the customer when a Transfer is successfully completed.
 
+### Testing
+Unit and integration tests with Junit-5.
+__________________________________________________________________________
+## Kafka
+The money transfer and notifications microservices communicate asynchronously using events with Kafka.
+________________________________________________________________________
 ## Docker
 
 Build the project and let the magic ✨ happen by executing:
