@@ -32,7 +32,9 @@ services:
       - network-simple
 
   notification-app:
-    image: rozachatz/notification-service
+    build:
+      context: ./notifications
+      dockerfile: Dockerfile
     environment:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on:
@@ -43,7 +45,7 @@ services:
 
   app:
     build:
-      context: .
+      context: ./moneytransfer
       dockerfile: Dockerfile
     image: money-transfer-app
     ports:

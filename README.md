@@ -6,30 +6,30 @@
 - [API Documentation](#API-Documentation)
 - [Architecture](#architecture)
 - [Testing](#testing)
+- [Kafka](#kafka)
 - [Docker](#docker)
 
 ## Introduction
 
-CashFlowz is a Java application for seamless and secure financial transfers 💸 .
+CashFlowz is a money transfer microservice application written in Java for seamless and secure financial transfers 💸 .
 
 ## API Documentation
 
-Power-up the application (preferably with [Docker](#docker-guidelines)) and
-visit "http://localhost:8080/api/swagger-ui/index.html" to explore endpoints, read API documentation and try-out the
-app! 😊
+Power-up the application (preferably with [Docker](#docker)) and
+visit "http://localhost:8080/api/swagger-ui/index.html" to explore endpoints and  read the API documentation! 😊
 
 ## Architecture
-
-The app follows a three-tier layered architecture, consisting of the Presentation Layer (Controller(s)), Business
-Layer (Services) and Persistent Layer (Repositories/Entities).
+### MoneyTransfer Microservice
+The moneytransfer microservice architecture follows a domain-driven design pattern.
 
 ### Presentation Layer
 
-All endpoints and their corresponding swagger documentation are defined in the MoneyTransferAPIController.
+All endpoints and their documentation are defined in MoneyTransferAPIController.
 
-### Business Layer
+### Application Layer
+Includes all the services and DTOs.
 
-- #### GetTransactionService
+- #### GetTransferService
 
 Gets all transfers within the system.
 
@@ -45,68 +45,77 @@ Performs the money transfer operation.
 
 Performs currency exchange by retrieving the latest exchange rates from "https://freecurrencyapi.com/"! 💱
 
-- #### RequestService
+- #### TransferRequestService
 
-Gets, submits and resolves all transfer requests, which are stored in a Redis cache (i.e., requestsCache).
+Gets, submits and resolves all transfer requests.
 
-### Persistent Layer
+- #### CurrencyExchangeService
+Gets the exchange rates from third party API using CurrencyExchangeDao and performs the currency exchange for a given amount.
 
-Using JPA repositories for each entity:
+### Domain Layer
 
 #### Account
 
-The Account entity represents a bank account with the following prope
+The Account entity represents a bank account with the following properties:
 
-| Field      | Description                                     |      
-|------------|-------------------------------------------------|      
-| account_id | Unique identifier of the account                |      
-| owner_name | Name of the account owner                       |      
-| balance    | Decimal number representing the account balance |     
-| currency   | Currency of the account                         |                   
-| created_at | Date and time of account creation.              |      
+| Field      | Description                      |      
+|------------|----------------------------------|      
+| account_id | Unique identifier of the Account |      
+| owner_name | Owner name                       |      
+| balance    | Account balance                  |     
+| currency   | Currency of the Account          |                   
+| created_at | Creation date.                   |      
 
-#### Transaction
+#### Transfer
 
-The Transaction entity represents a financial transfer between two
+The Transfer entity represents a financial transfer between two accounts:
 
 | Field             | Description                           |         
 |-------------------|---------------------------------------|         
-| transaction_id    | Unique identifier of the transfer. |         
+| transfer_id       | Unique identifier of the Transfer.    |         
 | source_account_id | ID of the account sending the funds   |         
 | target_account_id | ID of the account receiving the funds |        
-| amount            | Amount being transferred              |         
-| currency          | currency of the transfer           |         
+| amount            | The transfer amount                   |         
+| currency          | Transfer currency                     |         
 
-#### TransactionRequest
+#### TransferRequest
 
-The TransactionRequest entity represents an idempotent transfer reque
+The TransferRequest entity represents a transfer request:
 
-| Field             | Description                                  | 
-|-------------------|----------------------------------------------| 
-| request_id        | Unique identifier of the transactionRequest  | 
-| source_account_id | ID of the account sending the funds          | 
-| target_account_id | ID of the account receiving the funds        | 
-| amount            | Amount of funds being transferred            | 
-| transfer       | the associated Transaction                   | 
-| http_status       | http status of the associated post request.  | 
-| info_message      | detailed information for the request outcome | 
+| Field                   | Description                                            | 
+|-------------------------|--------------------------------------------------------| 
+| transfer_request_id     | Unique identifier of the TransferRequest               | 
+| source_account_id       | ID of the account sending the funds                    | 
+| target_account_id       | ID of the account receiving the funds                  | 
+| amount                  | The transfer amount                                    | 
+| transfer_request_status | The status of a TransferRequest                        |
+| transfer                | the associated Transfer of a completed TransferRequest | 
+| http_status             | http status of a completed TransferRequest             | 
+| info_message            | includes the exception message or a success message    | 
 
+### Notifications Microservice
+The Notifications microservice sends a notification to the customer when a Transfer is successfully completed.
+
+### Kafka
+The money transfer and notifications microservices communicate asynchronously with Kafka.
+
+### Persistence Layer
+Includes all (JPA) repositories and Data Access Objects (DAOs).
 _______________________________________
 
-### Aspect Oriented Programming
+## Aspect Oriented Programming
 
-- ##### IdempotentTransferAspect
+### IdempotentTransferAspect
 
-Provides the functionality for an idempotent transfer request.
+An @Around aspect providing the functionality for idempotent transfer requests.
 ______________________________
 
-### Logging & Exception Handling
+## Logging & Exception Handling
 
 Using @ControllerAdvice for exception handling and logging.
 
 ## Testing
-
-At the moment, service integration tests (with H2 test database) are provided.
+Unit and integration tests with Junit-5 and @TestContainers.
 
 ### Acceptance Criteria
 
