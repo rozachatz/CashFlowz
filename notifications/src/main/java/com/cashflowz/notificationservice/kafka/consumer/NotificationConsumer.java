@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class NotificationConsumer {
     private final TransferNotificationService transferNotificationService;
-    @KafkaListener(topics = "console-notification", groupId = "notifications-group")
+    @KafkaListener(topics = "${spring.kafka.consumer.topic.notifications}",  groupId = "${spring.kafka.consumer.group-id.notifications}")
     public void sendNotification(TransferCompletedEvent event) {
         transferNotificationService.sendNotification(event.message());
     }

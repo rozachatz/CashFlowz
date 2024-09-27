@@ -11,7 +11,7 @@ import org.springframework.kafka.test.context.EmbeddedKafka;
 import static org.mockito.Mockito.verify;
 
 @SpringBootTest
-@EmbeddedKafka(bootstrapServersProperty = "spring.kafka.bootstrap-servers", partitions = 1, topics = {"console-notification"})
+@EmbeddedKafka(bootstrapServersProperty = "spring.kafka.bootstrap-servers")
 public class NotificationConsumerTest {
 
     @Mock

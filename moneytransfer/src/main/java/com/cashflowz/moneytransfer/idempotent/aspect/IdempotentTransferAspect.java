@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.stereotype.Component;
@@ -39,6 +40,8 @@ public class IdempotentTransferAspect {
     private final TransferRequestService transferRequestService;
     private final ThreadLocal<TransactionStatus> currentTransactionStatus = new ThreadLocal<>();
     private final KafkaTemplate<String, Event> kafkaTemplate;
+    @Value("${spring.kafka.consumer.topic.notifications}")  // Injecting the topic name from properties
+    private String notificationsTopic;
     /**
      * Handles an idempotent request for money transfer, encapsulated by {@link NewTransferDto}.
      * <p>
@@ -176,8 +179,14 @@ public class IdempotentTransferAspect {
         }
         createNewTransaction(TransactionDefinition.ISOLATION_DEFAULT);
         transferRequestService.completeSuccessfulTransferRequest(transferRequest, transfer);
-        String message = "Transfer with id " +transfer.getTransferId()+" of " +transfer.getAmount()+transfer.getCurrency() +" to account "+ transfer.getTargetAccount().getAccountId()+" was completed successfully";
-        kafkaTemplate.send("console-notification", new TransferCompletedEvent(message));
+        String message = String.format(
+                "Transfer with id %s of %.2f %s to target account %s was completed successfully",
+                transfer.getTransferId(),
+                transfer.getAmount(),
+                transfer.getCurrency(),
+                transfer.getTargetAccount().getAccountId()
+        );
+        kafkaTemplate.send(notificationsTopic, new TransferCompletedEvent(message));
         return transfer;
     }
 
