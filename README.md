@@ -4,58 +4,47 @@
 
 - [Introduction](#introduction)
 - [API Documentation](#API-Documentation)
-- [Architecture](#architecture)
-- [Testing](#testing)
-- [Kafka](#kafka)
-- [Docker](#docker)
+- [MoneyTransfer Microservice](#moneytransfer-microservice)
+- [Notifications Microservice](#notifications-microservice)
+- [App Events](#app-events)
+- [Docker Guidelines](#docker-guidelines)
 
 ## Introduction
 
-CashFlowz is a money transfer microservice application written in Java for seamless and secure financial transfers 💸 .
-
+CashFlowz is a Java-based microservices application for money transfers. It features an idempotent API and uses event-driven architecture for asynchronous communication between services.
 ## API Documentation
 
-Power-up the application (preferably with [Docker](#docker)) and
-visit "http://localhost:8080/api/swagger-ui/index.html" to explore endpoints and  read the API documentation! 😊
+Power-up the application (preferably with [Docker](#docker-guidelines)) and
+visit "http://localhost:8080/api/swagger-ui/index.html" to explore endpoints of the app and read the API documentation! 😊
+
 ## MoneyTransfer Microservice
 ### Architecture
 The moneytransfer REST microservice architecture follows a domain-driven design pattern.
 
+
 #### Presentation Layer
-
-All endpoints and their documentation are defined in MoneyTransferAPIController.
-
+Includes the endpoints and their Swagger documentation (MoneyTransferAPIController).
+___
 #### Application Layer
-Includes all the services and DTOs.
+**Services**:
 
-- #### GetTransferService
+- GetTransferService: retrieves transfers.
 
-Gets all transfers within the system.
+- GetAccountService: retrieves bank accounts.
 
-- #### GetAccountService
+- MoneyTransferService: performs the money transfer operation.
 
-Gets all accounts within the system.
+- CurrencyExchangeService: Gets the exchange rates from third party API (provided by https://freecurrencyapi.com/) using CurrencyExchangeDao. Performs currency exchange for a given rate and amount.
 
-- #### MoneyTransferService
+- TransferRequestService: gets, creates and completes transfer requests.
 
-Performs the money transfer operation.
+**Aspects**: 
 
-- #### CurrencyExchangeService
-
-Performs currency exchange by retrieving the latest exchange rates from "https://freecurrencyapi.com/"! 💱
-
-- #### TransferRequestService
-
-Gets, submits and resolves all transfer requests.
-
-- #### CurrencyExchangeService
-Gets the exchange rates from third party API using CurrencyExchangeDao and performs the currency exchange for a given amount.
-
+- IdempotentTransferAspect: An @Around aspect providing the functionality for idempotent transfer requests. It publishes a Kafka consumer topic for sending transfer notifications. 
+___
 #### Domain Layer
 
-#### Account
-
-The Account entity represents a bank account with the following properties:
+The **Account** entity represents a bank account with the following properties:
 
 | Field      | Description                      |      
 |------------|----------------------------------|      
@@ -65,9 +54,7 @@ The Account entity represents a bank account with the following properties:
 | currency   | Currency of the Account          |                   
 | created_at | Creation date.                   |      
 
-#### Transfer
-
-The Transfer entity represents a financial transfer between two accounts:
+The **Transfer** entity represents a financial transfer between two accounts:
 
 | Field             | Description                           |         
 |-------------------|---------------------------------------|         
@@ -77,9 +64,7 @@ The Transfer entity represents a financial transfer between two accounts:
 | amount            | The transfer amount                   |         
 | currency          | Transfer currency                     |         
 
-#### TransferRequest
-
-The TransferRequest entity represents a transfer request:
+The **TransferRequest** entity represents a transfer request:
 
 | Field                   | Description                                            | 
 |-------------------------|--------------------------------------------------------| 
@@ -91,41 +76,38 @@ The TransferRequest entity represents a transfer request:
 | transfer                | the associated Transfer of a completed TransferRequest | 
 | http_status             | http status of a completed TransferRequest             | 
 | info_message            | includes the exception message or a success message    | 
-
+___
 #### Persistence Layer
-Includes all (JPA) repositories and Data Access Objects (DAOs).
+Includes all (**JPA**) repositories and Data Access Objects (DAOs).
 
-#### Logging & Exception Handling
+---
+###  Exception Handling & Logging
 Using @ControllerAdvice for exception handling and logging.
 
-#### Aspects
-
-#### IdempotentTransferAspect
-
-An @Around aspect providing the functionality for idempotent transfer requests.
-
 ### Testing
-Unit and integration tests with Junit-5 and @TestContainers.
-
+Unit and integration tests with **Junit-5** and **@TestContainers**.
 #### Acceptance Criteria
 
 - AC 1: Happy path
 - AC 2: Insufficient balance
 - AC 3: Transfer in the same account
 - AC 4: Source/target account does not exist
-__________________________________________________________________________
+___
 ## Notifications Microservice
-The Notifications microservice sends a notification to the customer when a Transfer is successfully completed.
+The microservice features a Kafka consumer subscribed to the notification topic. This consumer listens for **TransferCompletedEvent** events and sends a transfer notification (log) message.
+
+The **TransferNotificationsService** includes the logic for sending a transfer notification.
+
 
 ### Testing
-Unit and integration tests with Junit-5.
-__________________________________________________________________________
-## Kafka
-The money transfer and notifications microservices communicate asynchronously using events with Kafka.
-________________________________________________________________________
-## Docker
+Unit and integration tests with **Junit-5**.
+____
+## App Events
+The money transfer and notifications microservices communicate asynchronously with events (**TransferCompletedEvent**) using **Kafka** with **Redpanda**.
+___
+## Docker Guidelines
 
-Build the project and let the magic ✨ happen by executing:
+Build the project using Maven and let the magic ✨ happen by executing:
 
 ````bash
 docker compose up --build
