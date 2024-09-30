@@ -6,7 +6,7 @@
 # separate terms of service, privacy policy, and support
 # documentation.
 
-name: Java CI with Maven
+name: Java CI/CD
 
 on:
   push:
@@ -33,7 +33,7 @@ jobs:
       run: mvn -B package --file pom.xml
 
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag money-transfer-app:$(date +%s)
+      run: docker build . --file Dockerfile --tag money-transfer-app:latest
       
   deploy:
     runs-on: ubuntu-latest
@@ -44,4 +44,4 @@ jobs:
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Push Docker image to GitHub Container Registry
-        run: docker push ghcr.io/${{ github.repository_owner }}/money-transfer-app:$(date +%s)
+        run: docker push ghcr.io/${{ github.repository_owner }}/money-transfer-app:latest
