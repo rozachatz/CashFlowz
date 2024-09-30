@@ -1,0 +1,21 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build the Docker image for moneytransfer microservice
+      run: docker build ./moneytransfer --file Dockerfile --tag money-transfer-app:$(date +%s)
+      
+    - name: Build Docker image for notifications microservice
+      run: docker build ./notifications --file Dockerfile --tag notifications-app:$(date +%s)
