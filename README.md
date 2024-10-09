@@ -12,10 +12,10 @@
 ## Introduction
 
 CashFlowz is a Java-based microservices application for money transfers. It features an idempotent API and uses event-driven architecture for asynchronous communication between services.
-## API Documentation
 
-Power-up the application (preferably with [Docker](#docker-guidelines)) and
-visit "http://localhost:8080/api/swagger-ui/index.html" to explore endpoints of the app and read the API documentation! 😊
+## API Documentation
+Power-up the application (preferably with [Docker](#docker)) and
+visit "http://localhost:8080/api/swagger-ui/index.html" to explore endpoints and  read the API documentation! 😊
 
 ## MoneyTransfer Microservice
 ### Architecture
