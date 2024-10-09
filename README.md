@@ -24,7 +24,7 @@ The app architecture follows a domain-driven design pattern.
 
 All endpoints and their documentation are defined in MoneyTransferAPIController.
 
-### Application Layer
+### Application Layer 
 Includes all the services and DTOs.
 
 - #### GetTransferService
