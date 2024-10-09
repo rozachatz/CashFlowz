@@ -28,11 +28,10 @@ jobs:
       run: mvn -B package --file pom.xml
 
     - name: Build the MoneyTransfer microservice Docker image
-      run: docker build . --file ./moneytransfer/Dockerfile --tag ghcr.io/${{ github.repository_owner }}/money-transfer-app:latest
+      run: docker build ./moneytransfer --file ./moneytransfer/Dockerfile --tag ghcr.io/${{ github.repository_owner }}/money-transfer-app:latest
 
     - name: Build the Notifications microservice Docker image
-      run: docker build . --file ./notifications/Dockerfile --tag ghcr.io/${{ github.repository_owner }}/notifications-app:latest
-
+      run: docker build ./notifications --file ./notifications/Dockerfile --tag ghcr.io/${{ github.repository_owner }}/notifications-app:latest
 
     - name: List Docker images
       run: docker images
